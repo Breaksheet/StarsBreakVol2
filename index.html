@@ -308,25 +308,25 @@ function parseCsv(text) {
 
 const WEEKDAY_ABBR = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-// Header dates are expected like "Sat 20" (weekday abbreviation + day number).
-// Also accepts plain "M/D" style dates as a fallback. Adjust here if your
-// sheet uses a different format.
-function findTodayColumn(headerRow, today = new Date()) {
-  const month = today.getMonth() + 1;
+// The sheet's date header is split across two separate rows: one row has the
+// weekday abbreviation ("Mon", "Tue", ...) and the row right below it has the
+// day-of-month number ("22"). We find the column where both match today.
+function findTodayColumn(weekdayRow, dayRow, today = new Date()) {
   const day = today.getDate();
-  const weekday = WEEKDAY_ABBR[today.getDay()];
+  const weekday = WEEKDAY_ABBR[today.getDay()].toLowerCase();
 
-  const candidates = [
-    `${weekday} ${day}`,
-    `${month}/${day}`,
-    `${month}/${String(day).padStart(2, "0")}`,
-  ].map((c) => c.toLowerCase());
-
-  for (let col = 1; col < headerRow.length; col++) {
-    const cell = (headerRow[col] || "").trim().toLowerCase();
-    if (candidates.includes(cell)) return col;
+  for (let col = 1; col < dayRow.length; col++) {
+    const wdCell = (weekdayRow[col] || "").trim().toLowerCase();
+    const dayCell = (dayRow[col] || "").trim();
+    if (wdCell === weekday && parseInt(dayCell, 10) === day) return col;
   }
   return -1;
+}
+
+// Finds the row index of the "Agents" section marker, so we know where the
+// agent table starts (the rows above it are just the date header grid).
+function findAgentsHeaderRow(rows) {
+  return rows.findIndex((row) => row.some((cell) => (cell || "").trim().toLowerCase() === "agents"));
 }
 
 // Shift codes look like "09-17" or "14-22" (24h HH-HH). A leading "T"
@@ -373,18 +373,21 @@ async function fetchOnShiftAgents(now = new Date()) {
   if (!response.ok) throw new Error(`Failed to load schedule: ${response.status}`);
 
   const rows = parseCsv(await response.text());
-  if (rows.length < 2) return [];
+  if (rows.length < 4) return [];
 
-  const [headerRow, ...agentRows] = rows;
-  const todayCol = findTodayColumn(headerRow, now);
+  const todayCol = findTodayColumn(rows[1] || [], rows[2] || [], now);
   if (todayCol === -1) {
     throw new Error("Could not find today's date column in the schedule sheet.");
   }
+
+  const agentsHeaderIdx = findAgentsHeaderRow(rows);
+  const agentRows = agentsHeaderIdx === -1 ? rows.slice(3) : rows.slice(agentsHeaderIdx + 1);
 
   const onShift = [];
   for (const row of agentRows) {
     const name = row[1];
     if (!name) continue;
+    if (name.trim().toLowerCase() === "management") break;
     const shift = parseShiftCode(row[todayCol]);
     if (shift && isWithinShift(shift, now)) {
       onShift.push({ name, shift });
