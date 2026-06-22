@@ -86,17 +86,17 @@ header {
 .pill-clock-big {
   display: inline-flex;
   align-items: baseline;
-  gap: 8px;
-  border-radius: 12px;
-  padding: 8px 20px;
-  font-size: 24px;
+  gap: 10px;
+  border-radius: 14px;
+  padding: 10px 26px;
+  font-size: 34px;
   font-weight: 700;
   border: 1px solid rgba(91, 141, 239, 0.35);
   background: rgba(91, 141, 239, 0.1);
   color: var(--text);
 }
 .pill-clock-big .tz-label {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--muted);
   letter-spacing: 0.5px;
@@ -128,10 +128,9 @@ header {
   border-radius: 50%;
 }
 
-.pill-live .pill-dot { background: var(--accent); animation: blink 1.1s ease-in-out infinite; }
 .pill-clock { color: var(--upcoming); border-color: rgba(91, 141, 239, 0.3); background: rgba(91, 141, 239, 0.07); }
 .pill-sync { color: var(--muted); }
-.pill-sync.ok .pill-dot { background: var(--accent); }
+.pill-sync.ok .pill-dot { background: var(--accent); animation: blink 1.1s ease-in-out infinite; }
 .pill-sync.syncing .pill-dot { background: var(--on-break); animation: blink 0.7s infinite; }
 .pill-sync.err .pill-dot { background: var(--danger); }
 
@@ -175,7 +174,7 @@ header {
 }
 
 .stat-label {
-  font-size: 11px;
+  font-size: 12.5px;
   text-transform: uppercase;
   letter-spacing: 1.2px;
   color: var(--muted);
@@ -183,7 +182,7 @@ header {
 }
 
 .stat-value {
-  font-size: 26px;
+  font-size: 32px;
   font-weight: 700;
   font-family: 'JetBrains Mono', monospace;
 }
@@ -197,9 +196,9 @@ header {
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 12px 18px;
+  padding: 14px 20px;
   margin-bottom: 18px;
-  font-size: 12.5px;
+  font-size: 14px;
   color: var(--muted);
 }
 .rules-bar b { color: var(--text); }
@@ -301,14 +300,14 @@ header {
 }
 
 .avatar {
-  width: 38px;
-  height: 38px;
-  border-radius: 11px;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  font-size: 14px;
+  font-size: 16px;
   color: #0c1018;
   background: linear-gradient(135deg, var(--accent), #3a64b8);
   flex-shrink: 0;
@@ -316,8 +315,8 @@ header {
 .row.on-break .avatar { background: linear-gradient(135deg, var(--on-break), #c47e2e); color: #241704; }
 
 .name-block { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.name { font-weight: 600; font-size: 17px; }
-.shift-range { font-size: 12.5px; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+.name { font-weight: 600; font-size: 19px; }
+.shift-range { font-size: 14px; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
 
 .status-pill {
   margin-left: auto;
@@ -437,7 +436,6 @@ footer.note {
       <span class="pill-clock-big mono"><span id="kyiv-clock">--:--</span><span class="tz-label">KYIV</span></span>
     </div>
     <div class="header-right">
-      <span class="pill pill-live"><span class="pill-dot"></span>LIVE</span>
       <span class="pill pill-sync" id="sync-pill"><span class="pill-dot"></span><span id="sync-label">Connecting…</span></span>
     </div>
   </header>
@@ -455,7 +453,7 @@ footer.note {
 
     <div class="rules-bar">
       <span>🕐 <b>60 min</b> total per agent, up to <b>3 slots</b></span>
-      <span>👥 <b>2 concurrent</b> breaks once 6+ agents are on shift, otherwise 1</span>
+      <span>👥 <b>2 agents</b> can take a break at the same time once 6+ agents are on shift, otherwise 1</span>
       <span>🍱 No breaks in the <b>last 30 min</b> of an agent's own shift</span>
     </div>
 
@@ -498,7 +496,6 @@ const MAX_AGENT_ROWS = 10;
 const TWO_BREAK_THRESHOLD = 6;
 const MAX_SLOTS_PER_AGENT = 3;
 const MAX_BREAK_MINUTES_PER_DAY = 60;
-const MAX_OVERLAP_MINUTES = 30;
 const SHIFT_END_BLACKOUT_MINUTES = 30;
 const SLOT_STEP_MINUTES = 15;
 const EXCLUDED_NAMES = ["jawhara"];
@@ -608,8 +605,8 @@ function kyivMinutesFromDate(date) {
   return h * 60 + m;
 }
 function kyivClockString(date) {
-  const { h, m } = kyivPartsFromDate(date);
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  const { h, m, s } = kyivPartsFromDate(date);
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
 // ---- App ----
@@ -691,25 +688,19 @@ function activeBreakCount(nowMinutes) {
 }
 
 // Overlap check against every other agent's booked slots.
-function overlapMinutesAgainstOthers(startMin, endMin, excludeAgent, excludeSlotId) {
-  let maxOverlap = 0;
+function overlapMinutesAgainstOthers(startMin, endMin, excludeAgent) {
   let overlappingAgents = 0;
   for (const agent of onShiftAgents) {
     if (agent.name === excludeAgent) continue;
-    let agentOverlaps = false;
-    for (const slot of agentSlots(agent.name)) {
-      if (!slot.start || !slot.end) continue;
+    const agentOverlaps = agentSlots(agent.name).some((slot) => {
+      if (!slot.start || !slot.end) return false;
       const slotStart = timeToMinutes(slot.start);
       const slotEnd = timeToMinutes(slot.end);
-      const overlap = Math.min(endMin, slotEnd) - Math.max(startMin, slotStart);
-      if (overlap > 0) {
-        agentOverlaps = true;
-        maxOverlap = Math.max(maxOverlap, overlap);
-      }
-    }
+      return Math.min(endMin, slotEnd) - Math.max(startMin, slotStart) > 0;
+    });
     if (agentOverlaps) overlappingAgents++;
   }
-  return { overlappingAgents, maxOverlap };
+  return { overlappingAgents };
 }
 
 // How many other agents have a booked slot covering this single minute.
@@ -722,6 +713,23 @@ function overlappingAgentsAtMinute(minute, excludeAgent) {
       const start = timeToMinutes(slot.start);
       const end = timeToMinutes(slot.end);
       return minute >= start && minute < end;
+    });
+    if (covered) count++;
+  }
+  return count;
+}
+
+// Like overlappingAgentsAtMinute, but inclusive of a break's end boundary —
+// used only for the slot bar display so a break booked "21:00 -> 22:00"
+// visually highlights the 22:00 cell too, matching how agents read the range.
+function overlappingAgentsAtMinuteDisplay(minute) {
+  let count = 0;
+  for (const agent of onShiftAgents) {
+    const covered = agentSlots(agent.name).some((slot) => {
+      if (!slot.start || !slot.end) return false;
+      const start = timeToMinutes(slot.start);
+      const end = timeToMinutes(slot.end);
+      return minute >= start && minute <= end;
     });
     if (covered) count++;
   }
@@ -973,7 +981,7 @@ function renderGlobalSlots(nowMinutes, maxConcurrent) {
     const isPast = minute < nowMinutes;
     if (isPast) cell.classList.add("past");
 
-    const covered = overlappingAgentsAtMinute(minute);
+    const covered = overlappingAgentsAtMinuteDisplay(minute);
     let isFull = false;
     if (covered > 0) {
       if (covered >= maxConcurrent) {
@@ -1055,12 +1063,9 @@ async function saveSlot(agent, slotId, slotIndex, startValue, endValue) {
   }
 
   const maxConcurrent = maxConcurrentBreaks(onShiftAgents.length);
-  const { overlappingAgents, maxOverlap } = overlapMinutesAgainstOthers(startMin, endMin, agent.name, slotId);
+  const { overlappingAgents } = overlapMinutesAgainstOthers(startMin, endMin, agent.name);
   if (overlappingAgents >= maxConcurrent) {
     return "That time is already fully booked by other agents.";
-  }
-  if (overlappingAgents > 0 && maxOverlap > MAX_OVERLAP_MINUTES) {
-    return "Overlap with another agent's break exceeds 30 minutes.";
   }
 
   const ref = breaksRef().child(agent.name);
