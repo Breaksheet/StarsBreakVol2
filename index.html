@@ -662,7 +662,7 @@ const syncLabelEl = document.getElementById("sync-label");
 let onShiftAgents = [];
 let breakState = {}; // { [agentName]: { [slotId]: { start: "HH:MM", end: "HH:MM", started: bool } } }
 let selectedAgentName = localStorage.getItem("selectedAgentName") || null;
-let pendingGlobalSelection = null; // { startMin }
+let pendingGlobalSelection = null; // { agentName, startAbs } - startAbs is the absolute (non-wrapped) timeline minute
 
 function todayKey(now = new Date()) {
   const { h } = kyivPartsFromDate(now);
@@ -695,6 +695,20 @@ function minutesToTime(mins) {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
+// A break's end clock-time can be <= its start (e.g. 23:00 -> 00:00) when it
+// crosses midnight. This returns the end pushed past 1440 so duration/overlap
+// math always sees a normal, non-wrapped span.
+function slotEndAbs(startMin, endMin) {
+  return endMin > startMin ? endMin : endMin + 1440;
+}
+
+// Wrap-aware "is this clock minute inside [start, end)" check, matching the
+// overnight-wrap pattern already used by isWithinShift/minuteInBlackout.
+function minuteInSlotRange(minute, start, end, inclusiveEnd) {
+  if (start <= end) return inclusiveEnd ? minute >= start && minute <= end : minute >= start && minute < end;
+  return inclusiveEnd ? minute >= start || minute <= end : minute >= start || minute < end;
+}
+
 function agentSlots(agentName) {
   return Object.entries(breakState[agentName] || {}).map(([id, slot]) => ({ id, ...slot }));
 }
@@ -703,7 +717,11 @@ function agentBookedMinutes(agentName, excludeId = null) {
   return agentSlots(agentName)
     .filter((slot) => slot.id !== excludeId)
     .filter((slot) => slot.start && slot.end)
-    .reduce((sum, slot) => sum + (timeToMinutes(slot.end) - timeToMinutes(slot.start)), 0);
+    .reduce((sum, slot) => {
+      const start = timeToMinutes(slot.start);
+      const end = timeToMinutes(slot.end);
+      return sum + (slotEndAbs(start, end) - start);
+    }, 0);
 }
 
 // Status is driven by explicit Start/Stop actions, not just the clock, so
@@ -712,8 +730,11 @@ function slotStatus(slot, nowMinutes) {
   if (!slot.start || !slot.end) return "idle";
   if (slot.completed) return "done";
   if (slot.started) return "break";
+  const start = timeToMinutes(slot.start);
   const end = timeToMinutes(slot.end);
-  if (nowMinutes >= end) return "missed";
+  const endAbs = slotEndAbs(start, end);
+  const nowAbs = nowMinutes >= start ? nowMinutes : nowMinutes + 1440;
+  if (nowAbs >= endAbs) return "missed";
   return "upcoming";
 }
 
@@ -727,14 +748,15 @@ function activeBreakCount(nowMinutes) {
 
 // Overlap check against every other agent's booked slots.
 function overlapMinutesAgainstOthers(startMin, endMin, excludeAgent) {
+  const endAbs = slotEndAbs(startMin, endMin);
   let overlappingAgents = 0;
   for (const agent of onShiftAgents) {
     if (agent.name === excludeAgent) continue;
     const agentOverlaps = agentSlots(agent.name).some((slot) => {
       if (!slot.start || !slot.end) return false;
       const slotStart = timeToMinutes(slot.start);
-      const slotEnd = timeToMinutes(slot.end);
-      return Math.min(endMin, slotEnd) - Math.max(startMin, slotStart) > 0;
+      const slotEnd = slotEndAbs(slotStart, timeToMinutes(slot.end));
+      return Math.min(endAbs, slotEnd) - Math.max(startMin, slotStart) > 0;
     });
     if (agentOverlaps) overlappingAgents++;
   }
@@ -750,7 +772,7 @@ function overlappingAgentsAtMinute(minute, excludeAgent) {
       if (!slot.start || !slot.end) return false;
       const start = timeToMinutes(slot.start);
       const end = timeToMinutes(slot.end);
-      return minute >= start && minute < end;
+      return minuteInSlotRange(minute, start, end, false);
     });
     if (covered) count++;
   }
@@ -767,7 +789,7 @@ function overlappingAgentsAtMinuteDisplay(minute) {
       if (!slot.start || !slot.end) return false;
       const start = timeToMinutes(slot.start);
       const end = timeToMinutes(slot.end);
-      return minute >= start && minute <= end;
+      return minuteInSlotRange(minute, start, end, true);
     });
     if (covered) count++;
   }
@@ -787,11 +809,12 @@ function minuteInBlackout(shift, minute) {
 
 function violatesShiftEndBlackout(shift, startMin, endMin) {
   const blackoutStart = ((shiftEndBlackoutStart(shift) % 1440) + 1440) % 1440;
-  const shiftEnd = shift.endMinutes;
-  // Normalize against overnight shifts by checking if either boundary falls
-  // within [blackoutStart, shiftEnd) on a same-day basis (shift codes already
-  // describe the agent's own day, so this is a simple range check).
-  return startMin >= blackoutStart && startMin < shiftEnd || endMin > blackoutStart && endMin <= shiftEnd;
+  const shiftEnd = shift.endMinutes % 1440;
+  // Normalize against overnight shifts/breaks by checking if either boundary
+  // falls within [blackoutStart, shiftEnd) using the same wrap-aware range
+  // check used everywhere else for overnight spans.
+  return minuteInSlotRange(startMin, blackoutStart, shiftEnd, false) ||
+    minuteInSlotRange(endMin, blackoutStart, shiftEnd, true) && endMin !== blackoutStart;
 }
 
 function initials(name) {
@@ -914,7 +937,7 @@ function render() {
       if (isPendingSlot) {
         const timeDisplay = document.createElement("span");
         timeDisplay.className = "slot-time-display pending";
-        timeDisplay.textContent = `${minutesToTime(pendingGlobalSelection.startMin)} → --:--`;
+        timeDisplay.textContent = `${minutesToTime(pendingGlobalSelection.startAbs % 1440)} → --:--`;
         const hint = document.createElement("span");
         hint.className = "slot-pending-hint";
         hint.textContent = "Pick end time above";
@@ -922,11 +945,14 @@ function render() {
       } else if (hasTime) {
         const timeDisplay = document.createElement("span");
         timeDisplay.className = "slot-time-display";
-        timeDisplay.textContent = `${slot.start} → ${slot.end}  (${timeToMinutes(slot.end) - timeToMinutes(slot.start)}m)`;
+        const slotStartMin = timeToMinutes(slot.start);
+        const slotEndMin = timeToMinutes(slot.end);
+        timeDisplay.textContent = `${slot.start} → ${slot.end}  (${slotEndAbs(slotStartMin, slotEndMin) - slotStartMin}m)`;
         slotEl.append(label, timeDisplay);
 
         if (status === "break") {
-          const minutesLeft = timeToMinutes(slot.end) - nowMinutes;
+          const nowAbs = nowMinutes >= slotStartMin ? nowMinutes : nowMinutes + 1440;
+          const minutesLeft = slotEndAbs(slotStartMin, slotEndMin) - nowAbs;
           const countdown = document.createElement("span");
           countdown.className = `slot-countdown ${minutesLeft <= 5 ? "urgent" : ""}`;
           countdown.textContent = minutesLeft > 0 ? `${minutesLeft}m left` : "Time's up";
@@ -1071,13 +1097,13 @@ function renderGlobalSlots(nowMinutes, maxConcurrent) {
       if (!inBlackout) clickable = true;
     }
 
-    if (pendingGlobalSelection && selectedAgent && pendingGlobalSelection.agentName === selectedAgent.name && minute === pendingGlobalSelection.startMin) {
+    if (pendingGlobalSelection && selectedAgent && pendingGlobalSelection.agentName === selectedAgent.name && m === pendingGlobalSelection.startAbs) {
       cell.classList.add("pending");
     }
 
     if (clickable) {
       cell.classList.add("clickable");
-      cell.addEventListener("click", () => handleGlobalSlotClick(selectedAgent, minute));
+      cell.addEventListener("click", () => handleGlobalSlotClick(selectedAgent, m));
     }
 
     gsRowEl.appendChild(cell);
@@ -1086,24 +1112,27 @@ function renderGlobalSlots(nowMinutes, maxConcurrent) {
   }
 }
 
-async function handleGlobalSlotClick(agent, minute) {
+async function handleGlobalSlotClick(agent, abs) {
   if (!pendingGlobalSelection || pendingGlobalSelection.agentName !== agent.name) {
-    pendingGlobalSelection = { agentName: agent.name, startMin: minute };
+    pendingGlobalSelection = { agentName: agent.name, startAbs: abs };
     render();
     return;
   }
 
-  if (minute === pendingGlobalSelection.startMin) {
+  if (abs === pendingGlobalSelection.startAbs) {
     pendingGlobalSelection = null;
     render();
     return;
   }
 
-  const startMin = Math.min(pendingGlobalSelection.startMin, minute);
-  const endMin = Math.max(pendingGlobalSelection.startMin, minute);
+  // Use absolute (non-wrapped) values for ordering/duration so a selection
+  // that crosses midnight (e.g. 23:00 -> 00:00) computes a correct duration,
+  // then convert back to wrapped clock times for storage.
+  const startAbs = Math.min(pendingGlobalSelection.startAbs, abs);
+  const endAbs = Math.max(pendingGlobalSelection.startAbs, abs);
   pendingGlobalSelection = null;
 
-  const error = await saveSlot(agent, null, null, minutesToTime(startMin), minutesToTime(endMin));
+  const error = await saveSlot(agent, null, null, minutesToTime(startAbs % 1440), minutesToTime(endAbs % 1440));
   if (error) {
     statusEl.textContent = error;
     setTimeout(() => { if (statusEl.textContent === error) statusEl.textContent = ""; }, 4000);
@@ -1115,13 +1144,13 @@ async function saveSlot(agent, slotId, slotIndex, startValue, endValue) {
   const startMin = timeToMinutes(startValue);
   const endMin = timeToMinutes(endValue);
   if (startMin === null || endMin === null) return null; // incomplete, not an error yet
-  if (endMin <= startMin) return "End must be after start.";
+  if (endMin === startMin) return "End must be after start.";
 
   if (!slotId && agentSlots(agent.name).length >= MAX_SLOTS_PER_AGENT) {
     return `Max ${MAX_SLOTS_PER_AGENT} break slots per day.`;
   }
 
-  const duration = endMin - startMin;
+  const duration = slotEndAbs(startMin, endMin) - startMin;
   const otherMinutes = agentBookedMinutes(agent.name, slotId);
   if (otherMinutes + duration > MAX_BREAK_MINUTES_PER_DAY) {
     return `Max ${MAX_BREAK_MINUTES_PER_DAY} minutes of break per day.`;
@@ -1154,7 +1183,7 @@ async function startBreak(agentName, slotId, slot, nowMinutes) {
   const scheduledStart = timeToMinutes(slot.start);
   const scheduledEnd = timeToMinutes(slot.end);
   if (scheduledStart !== null && scheduledEnd !== null && nowMinutes > scheduledStart) {
-    const duration = scheduledEnd - scheduledStart;
+    const duration = slotEndAbs(scheduledStart, scheduledEnd) - scheduledStart;
     update.start = minutesToTime(nowMinutes);
     update.end = minutesToTime(nowMinutes + duration);
   }
