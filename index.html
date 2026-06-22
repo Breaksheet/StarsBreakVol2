@@ -219,12 +219,12 @@ header {
   color: var(--muted);
   margin-bottom: 10px;
 }
-.gs-row { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 10px; }
+.gs-row { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; }
 .gs-cell {
-  min-width: 40px;
-  height: 26px;
-  border-radius: 5px;
-  font-size: 10px;
+  min-width: 54px;
+  height: 34px;
+  border-radius: 6px;
+  font-size: 12.5px;
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -239,6 +239,9 @@ header {
 .gs-cell.past { opacity: 0.35; }
 .gs-cell.half { background: rgba(229, 164, 77, 0.28); border-color: rgba(229, 164, 77, 0.4); color: var(--text); }
 .gs-cell.full { background: var(--on-break); border-color: var(--on-break); color: #241704; }
+.gs-cell.clickable { cursor: pointer; border-color: rgba(91, 141, 239, 0.45); }
+.gs-cell.clickable:hover { background: rgba(91, 141, 239, 0.2); color: var(--text); }
+.gs-cell.pending { background: var(--accent); border-color: var(--accent); color: #fff; }
 
 .board-columns {
   display: grid;
@@ -265,8 +268,16 @@ header {
   border-left: 4px solid var(--border);
   border-radius: 12px;
   padding: 10px 14px;
-  transition: border-color 0.2s, background 0.2s;
+  transition: border-color 0.2s, background 0.2s, outline-color 0.2s;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
 }
+.row.selected {
+  outline-color: var(--accent);
+  background: var(--panel-hover);
+}
+.row-head { cursor: pointer; }
+.slots.locked { opacity: 0.5; pointer-events: none; }
 
 .row.available { border-left-color: var(--available); }
 .row.on-break { border-left-color: var(--on-break); background: rgba(229, 164, 77, 0.05); }
@@ -353,7 +364,7 @@ header {
   padding: 6px 10px;
 }
 
-.slot-num { font-size: 12.5px; color: var(--muted); font-family: 'JetBrains Mono', monospace; min-width: 46px; }
+.slot-num { font-size: 13.5px; color: var(--muted); font-family: 'JetBrains Mono', monospace; min-width: 56px; }
 
 input[type="time"] {
   background: var(--bg);
@@ -391,20 +402,21 @@ button:disabled { opacity: 0.3; cursor: not-allowed; }
 
 .slot-time-display {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 14px;
-  min-width: 170px;
+  font-size: 17px;
+  font-weight: 600;
+  min-width: 200px;
   color: var(--text);
 }
 .slot-time-display.unset { color: var(--muted); }
 
 .slot-time-input {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 13px;
+  font-size: 15px;
   background: var(--panel-hover);
   border: 1px solid var(--border);
   border-radius: 6px;
   color: var(--text);
-  padding: 4px 6px;
+  padding: 6px 8px;
 }
 
 footer.note {
@@ -614,6 +626,8 @@ const syncLabelEl = document.getElementById("sync-label");
 
 let onShiftAgents = [];
 let breakState = {}; // { [agentName]: { [slotId]: { start: "HH:MM", end: "HH:MM", started: bool } } }
+let selectedAgentName = localStorage.getItem("selectedAgentName") || null;
+let pendingGlobalSelection = null; // { startMin }
 
 function todayKey(now = new Date()) {
   const { h } = kyivPartsFromDate(now);
@@ -781,8 +795,18 @@ function render() {
     const allDone = usedMins >= MAX_BREAK_MINUTES_PER_DAY && !onBreak;
     row.classList.add(onBreak ? "on-break" : allDone ? "done" : "available");
 
+    const isSelected = selectedAgentName === agent.name;
+    if (isSelected) row.classList.add("selected");
+
     const head = document.createElement("div");
     head.className = "row-head";
+    head.title = isSelected ? "Click to deselect this row" : "Click to select this row for editing";
+    head.addEventListener("click", () => {
+      selectedAgentName = selectedAgentName === agent.name ? null : agent.name;
+      localStorage.setItem("selectedAgentName", selectedAgentName || "");
+      pendingGlobalSelection = null;
+      render();
+    });
 
     const avatar = document.createElement("div");
     avatar.className = "avatar";
@@ -818,7 +842,7 @@ function render() {
     row.appendChild(head);
 
     const slotsEl = document.createElement("div");
-    slotsEl.className = "slots";
+    slotsEl.className = `slots ${isSelected ? "" : "locked"}`;
 
     slots.forEach((slot, slotIndex) => {
       const status = slot.id ? slotStatus(slot, nowMinutes) : "idle";
@@ -933,6 +957,11 @@ function renderGlobalSlots(nowMinutes, maxConcurrent) {
   const range = shiftUnionRange();
   if (!range) return;
 
+  const selectedAgent = onShiftAgents.find((a) => a.name === selectedAgentName) || null;
+  const usedMins = selectedAgent ? agentBookedMinutes(selectedAgent.name) : 0;
+  const slotsCount = selectedAgent ? agentSlots(selectedAgent.name).length : 0;
+  const canBookMore = selectedAgent && usedMins < MAX_BREAK_MINUTES_PER_DAY && slotsCount < MAX_SLOTS_PER_AGENT;
+
   let m = range.startMinutes;
   let guard = 0;
   while (m < range.endMinutes && guard < 200) {
@@ -941,11 +970,14 @@ function renderGlobalSlots(nowMinutes, maxConcurrent) {
     cell.className = "gs-cell";
     cell.textContent = minutesToTime(minute);
 
-    if (minute < nowMinutes) cell.classList.add("past");
+    const isPast = minute < nowMinutes;
+    if (isPast) cell.classList.add("past");
 
     const covered = overlappingAgentsAtMinute(minute);
+    let isFull = false;
     if (covered > 0) {
       if (covered >= maxConcurrent) {
+        isFull = true;
         cell.classList.add("full");
         cell.title = "Fully booked";
       } else {
@@ -955,10 +987,51 @@ function renderGlobalSlots(nowMinutes, maxConcurrent) {
       }
     }
 
+    let clickable = false;
+    if (selectedAgent && canBookMore && !isPast && !isFull) {
+      const inOwnShift = isWithinShift(selectedAgent.shift, minute);
+      const inBlackout = minuteInBlackout(selectedAgent.shift, minute);
+      if (inOwnShift && !inBlackout) clickable = true;
+    }
+
+    if (pendingGlobalSelection && minute === pendingGlobalSelection.startMin) {
+      cell.classList.add("pending");
+    }
+
+    if (clickable) {
+      cell.classList.add("clickable");
+      cell.addEventListener("click", () => handleGlobalSlotClick(selectedAgent, minute));
+    }
+
     gsRowEl.appendChild(cell);
     m += SLOT_STEP_MINUTES;
     guard++;
   }
+}
+
+async function handleGlobalSlotClick(agent, minute) {
+  if (!pendingGlobalSelection) {
+    pendingGlobalSelection = { startMin: minute };
+    render();
+    return;
+  }
+
+  if (minute === pendingGlobalSelection.startMin) {
+    pendingGlobalSelection = null;
+    render();
+    return;
+  }
+
+  const startMin = Math.min(pendingGlobalSelection.startMin, minute);
+  const endMin = Math.max(pendingGlobalSelection.startMin, minute) + SLOT_STEP_MINUTES;
+  pendingGlobalSelection = null;
+
+  const error = await saveSlot(agent, null, null, minutesToTime(startMin), minutesToTime(endMin));
+  if (error) {
+    statusEl.textContent = error;
+    setTimeout(() => { if (statusEl.textContent === error) statusEl.textContent = ""; }, 4000);
+  }
+  render();
 }
 
 async function saveSlot(agent, slotId, slotIndex, startValue, endValue) {
