@@ -1,1 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>StarsBreak</title>
+<style>
+:root {
+  --bg: #0b0d12;
+  --bg-grad-1: #11151f;
+  --bg-grad-2: #0b0d12;
+  --panel: #161a23;
+  --panel-hover: #1c2129;
+  --border: #262b36;
+  --text: #eef0f3;
+  --muted: #8a8f99;
+  --accent: #6c5ce7;
+  --available: #2ecc71;
+  --on-break: #f1c40f;
+  --danger: #e74c3c;
+}
 
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: radial-gradient(1200px 600px at 50% -10%, var(--bg-grad-1), var(--bg-grad-2));
+  color: var(--text);
+}
+
+header {
+  padding: 40px 24px 16px;
+  text-align: center;
+}
+
+h1 {
+  margin: 0 0 6px;
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  background: linear-gradient(135deg, #8e7cff, #6c5ce7 60%, #4834d4);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.kyiv-clock {
+  margin: 6px 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.3px;
+}
+
+.capacity {
+  display: inline-block;
+  margin: 10px 0 4px;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 16px;
+  font-size: 13px;
+}
+
+.status {
+  margin: 8px 0;
+  color: var(--danger);
+  font-size: 13px;
+  min-height: 16px;
+}
+
+.board {
+  max-width: 680px;
+  margin: 16px auto 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 16px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--border);
+  border-radius: 14px;
+  padding: 16px 20px;
+  position: relative;
+  flex-wrap: wrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.row:not(.empty):hover {
+  transform: translateY(-2px);
+  background: var(--panel-hover);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+}
+
+.row.available {
+  border-left-color: var(--available);
+}
+
+.row.on-break {
+  border-left-color: var(--on-break);
+}
+
+.row.empty {
+  color: var(--muted);
+  justify-content: center;
+  grid-template-columns: 1fr;
+  opacity: 0.4;
+  box-shadow: none;
+}
+
+.avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 16px;
+  color: #0b0d12;
+  background: linear-gradient(135deg, #8e7cff, #4834d4);
+  flex-shrink: 0;
+}
+
+.row.on-break .avatar {
+  background: linear-gradient(135deg, #f1c40f, #d68910);
+}
+
+.name {
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.badge {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.badge::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--available);
+}
+
+.row.on-break .badge::before {
+  background: var(--on-break);
+}
+
+button {
+  border: none;
+  border-radius: 8px;
+  padding: 9px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--available);
+  color: #0b0d12;
+  transition: filter 0.15s ease, transform 0.1s ease;
+}
+
+button:hover {
+  filter: brightness(1.08);
+}
+
+button:active {
+  transform: scale(0.97);
+}
+
+.row.on-break button {
+  background: var(--on-break);
+}
+
+button:disabled {
+  background: var(--border);
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+.info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.slot-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.slot-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--border);
+  color: var(--text);
+  font-size: 12px;
+  padding: 4px 6px 4px 10px;
+  border-radius: 999px;
+}
+
+.slot-remove {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 4px;
+  cursor: pointer;
+}
+
+.add-break {
+  background: transparent;
+  border: 1px solid var(--accent);
+  color: #b3a4ff;
+}
+
+.add-break:hover {
+  background: rgba(108, 92, 231, 0.15);
+  filter: none;
+}
+
+.booking-form {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.booking-form input[type="time"] {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.booking-error {
+  color: var(--danger);
+  font-size: 12px;
+}
+</style>
+</head>
+<body>
+  <header>
+    <h1>StarsBreak</h1>
+    <p id="kyiv-clock" class="kyiv-clock"></p>
+    <p id="capacity" class="capacity"></p>
+    <p id="status" class="status"></p>
+  </header>
+
+  <main id="board" class="board"></main>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <script>
+// ---- Config ----
+const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRpTkls_JxMpJsz1Y4qaHmRLd0r-2RwzbRRF8jFD5yIsbCp8PpwOJdwBpuVxWkdEnRtFqAEyFKUTTCi/pub?gid=1497706552&single=true&output=csv";
+
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyD6qYHzySBv7wopAPK39iTjSn6FCF_0Hkk",
+  authDomain: "starsbreakvol2.firebaseapp.com",
+  databaseURL: "https://starsbreakvol2-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "starsbreakvol2",
+  storageBucket: "starsbreakvol2.firebasestorage.app",
+  messagingSenderId: "935387531595",
+  appId: "1:935387531595:web:7de2d603cec0b2b39340ce",
+};
+
+const SCHEDULE_REFRESH_MS = 60 * 1000;
+const MAX_AGENT_ROWS = 8;
+const TWO_BREAK_THRESHOLD = 6;
+
+// ---- Schedule parsing ----
+const STATUS_OFF = "OFF";
+const STATUS_PROBATION = "OB";
+
+function parseCsv(text) {
+  return text
+    .trim()
+    .split(/\r?\n/)
+    .map((line) => line.split(",").map((cell) => cell.trim().replace(/^"|"$/g, "")));
+}
+
+const WEEKDAY_ABBR = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+// Header dates are expected like "Sat 20" (weekday abbreviation + day number).
+// Also accepts plain "M/D" style dates as a fallback. Adjust here if your
+// sheet uses a different format.
+function findTodayColumn(headerRow, today = new Date()) {
+  const month = today.getMonth() + 1;
+  const day = today.getDate();
+  const weekday = WEEKDAY_ABBR[today.getDay()];
+
+  const candidates = [
+    `${weekday} ${day}`,
+    `${month}/${day}`,
+    `${month}/${String(day).padStart(2, "0")}`,
+  ].map((c) => c.toLowerCase());
+
+  for (let col = 1; col < headerRow.length; col++) {
+    const cell = (headerRow[col] || "").trim().toLowerCase();
+    if (candidates.includes(cell)) return col;
+  }
+  return -1;
+}
+
+// Shift codes look like "09-17" or "14-22" (24h HH-HH). A leading "T"
+// (e.g. "T7-15") marks a ticket-duty shift — the agent works that shift but
+// isn't on phones, so they're excluded from the board entirely. Returns
+// { startMinutes, endMinutes } or null if the cell isn't a phone shift
+// (OFF/OB/ticket-duty/empty).
+function parseShiftCode(cell) {
+  if (!cell) return null;
+  const normalized = cell.trim().toUpperCase();
+  if (normalized === STATUS_OFF || normalized === STATUS_PROBATION || normalized === "") {
+    return null;
+  }
+  if (normalized.startsWith("T")) return null;
+
+  const match = normalized.match(/^(\d{1,2}):?(\d{2})?-(\d{1,2}):?(\d{2})?$/);
+  if (!match) return null;
+
+  const startH = parseInt(match[1], 10);
+  const startM = parseInt(match[2] || "0", 10);
+  const endH = parseInt(match[3], 10);
+  const endM = parseInt(match[4] || "0", 10);
+
+  return {
+    startMinutes: startH * 60 + startM,
+    endMinutes: endH * 60 + endM,
+  };
+}
+
+function isWithinShift(shift, now = new Date()) {
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const { startMinutes, endMinutes } = shift;
+
+  if (startMinutes <= endMinutes) {
+    return nowMinutes >= startMinutes && nowMinutes < endMinutes;
+  }
+  // Overnight shift (crosses midnight), e.g. 22-06.
+  return nowMinutes >= startMinutes || nowMinutes < endMinutes;
+}
+
+// Fetches and parses the sheet, returning the agents on shift right now.
+async function fetchOnShiftAgents(now = new Date()) {
+  const response = await fetch(SHEET_CSV_URL, { cache: "no-store" });
+  if (!response.ok) throw new Error(`Failed to load schedule: ${response.status}`);
+
+  const rows = parseCsv(await response.text());
+  if (rows.length < 2) return [];
+
+  const [headerRow, ...agentRows] = rows;
+  const todayCol = findTodayColumn(headerRow, now);
+  if (todayCol === -1) {
+    throw new Error("Could not find today's date column in the schedule sheet.");
+  }
+
+  const onShift = [];
+  for (const row of agentRows) {
+    const name = row[0];
+    if (!name) continue;
+    const shift = parseShiftCode(row[todayCol]);
+    if (shift && isWithinShift(shift, now)) {
+      onShift.push({ name, shift });
+    }
+  }
+
+  return onShift.slice(0, MAX_AGENT_ROWS);
+}
+
+function maxConcurrentBreaks(onShiftCount) {
+  return onShiftCount >= TWO_BREAK_THRESHOLD ? 2 : 1;
+}
+
+// ---- App ----
+firebase.initializeApp(FIREBASE_CONFIG);
+const db = firebase.database();
+
+const boardEl = document.getElementById("board");
+const statusEl = document.getElementById("status");
+const capacityEl = document.getElementById("capacity");
+const kyivClockEl = document.getElementById("kyiv-clock");
+
+const MAX_BREAK_MINUTES_PER_DAY = 60;
+const SLOT_STEP_MINUTES = 15;
+
+let onShiftAgents = [];
+let breakState = {}; // { [agentName]: { [slotId]: { start: "HH:MM", end: "HH:MM" } } }
+let openBookingFor = null; // agent name currently showing the add-break form
+
+function todayKey(now = new Date()) {
+  return now.toISOString().slice(0, 10); // YYYY-MM-DD
+}
+
+function breaksRef() {
+  return db.ref(`breaks/${todayKey()}`);
+}
+
+function timeToMinutes(value) {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(value.trim());
+  if (!match) return null;
+  const h = parseInt(match[1], 10);
+  const m = parseInt(match[2], 10);
+  if (h < 0 || h > 23 || m < 0 || m > 59) return null;
+  return h * 60 + m;
+}
+
+function minutesToTime(mins) {
+  const h = Math.floor(mins / 60) % 24;
+  const m = mins % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+function agentSlots(agentName) {
+  return Object.entries(breakState[agentName] || {}).map(([id, slot]) => ({ id, ...slot }));
+}
+
+function agentBookedMinutes(agentName, excludeId = null) {
+  return agentSlots(agentName)
+    .filter((slot) => slot.id !== excludeId)
+    .reduce((sum, slot) => sum + (timeToMinutes(slot.end) - timeToMinutes(slot.start)), 0);
+}
+
+function isOnBreakNow(agentName, now = new Date()) {
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  return agentSlots(agentName).some(
+    (slot) => nowMinutes >= timeToMinutes(slot.start) && nowMinutes < timeToMinutes(slot.end)
+  );
+}
+
+function activeBreakCount(now = new Date()) {
+  return onShiftAgents.filter((agent) => isOnBreakNow(agent.name, now)).length;
+}
+
+// Counts agents (other than excludeAgent) who have a booked slot overlapping
+// [startMin, endMin).
+function overlappingAgentCount(startMin, endMin, excludeAgent) {
+  const overlapping = new Set();
+  for (const agent of onShiftAgents) {
+    if (agent.name === excludeAgent) continue;
+    for (const slot of agentSlots(agent.name)) {
+      const slotStart = timeToMinutes(slot.start);
+      const slotEnd = timeToMinutes(slot.end);
+      if (startMin < slotEnd && endMin > slotStart) {
+        overlapping.add(agent.name);
+        break;
+      }
+    }
+  }
+  return overlapping.size;
+}
+
+function updateKyivClock() {
+  const now = new Date();
+  kyivClockEl.textContent = `Kyiv time: ${now.toLocaleTimeString("en-GB", {
+    timeZone: "Europe/Kyiv",
+    hour: "2-digit",
+    minute: "2-digit",
+  })}`;
+}
+
+function initials(name) {
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0].toUpperCase())
+    .join("");
+}
+
+function render() {
+  const now = new Date();
+  capacityEl.textContent = onShiftAgents.length
+    ? `${onShiftAgents.length} on shift · up to ${maxConcurrentBreaks(onShiftAgents.length)} on break at once · ${activeBreakCount(now)} on break now`
+    : "No agents currently on shift.";
+
+  boardEl.innerHTML = "";
+
+  for (let i = 0; i < MAX_AGENT_ROWS; i++) {
+    const agent = onShiftAgents[i];
+    const row = document.createElement("div");
+    row.className = "row";
+
+    if (!agent) {
+      row.classList.add("empty");
+      row.innerHTML = `<span class="name">—</span>`;
+      boardEl.appendChild(row);
+      continue;
+    }
+
+    const onBreak = isOnBreakNow(agent.name, now);
+    row.classList.add(onBreak ? "on-break" : "available");
+
+    const avatarEl = document.createElement("div");
+    avatarEl.className = "avatar";
+    avatarEl.textContent = initials(agent.name);
+
+    const nameEl = document.createElement("span");
+    nameEl.className = "name";
+    nameEl.textContent = agent.name;
+
+    const info = document.createElement("div");
+    info.className = "info";
+    info.appendChild(nameEl);
+
+    const statusBadge = document.createElement("span");
+    statusBadge.className = "badge";
+    statusBadge.textContent = onBreak ? "On break now" : "Available";
+    info.appendChild(statusBadge);
+
+    const slots = agentSlots(agent.name).sort(
+      (a, b) => timeToMinutes(a.start) - timeToMinutes(b.start)
+    );
+    const slotList = document.createElement("div");
+    slotList.className = "slot-list";
+    for (const slot of slots) {
+      const chip = document.createElement("span");
+      chip.className = "slot-chip";
+      chip.textContent = `${slot.start}–${slot.end}`;
+      const remove = document.createElement("button");
+      remove.className = "slot-remove";
+      remove.textContent = "×";
+      remove.addEventListener("click", () => removeBreak(agent.name, slot.id));
+      chip.appendChild(remove);
+      slotList.appendChild(chip);
+    }
+    info.appendChild(slotList);
+
+    const addButton = document.createElement("button");
+    addButton.className = "add-break";
+    addButton.textContent = "Add break";
+    addButton.addEventListener("click", () => {
+      openBookingFor = openBookingFor === agent.name ? null : agent.name;
+      render();
+    });
+
+    row.append(avatarEl, info, addButton);
+    boardEl.appendChild(row);
+
+    if (openBookingFor === agent.name) {
+      row.appendChild(buildBookingForm(agent.name));
+    }
+  }
+}
+
+function buildBookingForm(agentName) {
+  const form = document.createElement("div");
+  form.className = "booking-form";
+
+  const startInput = document.createElement("input");
+  startInput.type = "time";
+  startInput.step = SLOT_STEP_MINUTES * 60;
+  startInput.value = "";
+
+  const endInput = document.createElement("input");
+  endInput.type = "time";
+  endInput.step = SLOT_STEP_MINUTES * 60;
+  endInput.value = "";
+
+  const confirmButton = document.createElement("button");
+  confirmButton.textContent = "Book";
+  confirmButton.type = "button";
+
+  const errorEl = document.createElement("span");
+  errorEl.className = "booking-error";
+
+  confirmButton.addEventListener("click", async () => {
+    const error = await bookBreak(agentName, startInput.value, endInput.value);
+    if (error) {
+      errorEl.textContent = error;
+    } else {
+      openBookingFor = null;
+      render();
+    }
+  });
+
+  form.append(startInput, endInput, confirmButton, errorEl);
+  return form;
+}
+
+async function bookBreak(agentName, startValue, endValue) {
+  const startMin = timeToMinutes(startValue);
+  const endMin = timeToMinutes(endValue);
+
+  if (startMin === null || endMin === null) return "Pick a start and end time.";
+  if (startMin % SLOT_STEP_MINUTES !== 0 || endMin % SLOT_STEP_MINUTES !== 0) {
+    return "Times must be in 15-minute steps.";
+  }
+  if (endMin <= startMin) return "End time must be after start time.";
+
+  const duration = endMin - startMin;
+  if (agentBookedMinutes(agentName) + duration > MAX_BREAK_MINUTES_PER_DAY) {
+    return `Max ${MAX_BREAK_MINUTES_PER_DAY} minutes of break per day.`;
+  }
+
+  const maxConcurrent = maxConcurrentBreaks(onShiftAgents.length);
+  if (overlappingAgentCount(startMin, endMin, agentName) >= maxConcurrent) {
+    return "That time is already fully booked by other agents.";
+  }
+
+  await breaksRef().child(agentName).push({
+    start: minutesToTime(startMin),
+    end: minutesToTime(endMin),
+  });
+  return null;
+}
+
+async function removeBreak(agentName, slotId) {
+  await breaksRef().child(agentName).child(slotId).remove();
+}
+
+async function refreshSchedule() {
+  try {
+    onShiftAgents = await fetchOnShiftAgents();
+    statusEl.textContent = "";
+    render();
+  } catch (err) {
+    statusEl.textContent = err.message;
+  }
+}
+
+breaksRef().on("value", (snapshot) => {
+  breakState = snapshot.val() || {};
+  render();
+});
+
+updateKyivClock();
+setInterval(updateKyivClock, 1000);
+setInterval(render, 30 * 1000); // keep "on break now" status fresh as time passes
+
+refreshSchedule();
+setInterval(refreshSchedule, SCHEDULE_REFRESH_MS);
+  </script>
+</body>
+</html>
