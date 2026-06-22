@@ -37,16 +37,15 @@ body {
 .mono { font-family: 'JetBrains Mono', monospace; }
 
 header {
-  padding: 22px 26px;
-  display: flex;
+  padding: 18px 26px;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
   gap: 14px;
-  flex-wrap: wrap;
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
-  background: rgba(17, 20, 26, 0.85);
+  background: rgba(17, 20, 26, 0.92);
   backdrop-filter: blur(10px);
   z-index: 50;
 }
@@ -79,9 +78,34 @@ header {
 
 .brand-title span { color: var(--accent); }
 
+.header-center {
+  display: flex;
+  justify-content: center;
+}
+
+.pill-clock-big {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  border-radius: 12px;
+  padding: 8px 20px;
+  font-size: 24px;
+  font-weight: 700;
+  border: 1px solid rgba(91, 141, 239, 0.35);
+  background: rgba(91, 141, 239, 0.1);
+  color: var(--text);
+}
+.pill-clock-big .tz-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.5px;
+}
+
 .header-right {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 10px;
   flex-wrap: wrap;
 }
@@ -180,18 +204,67 @@ header {
 }
 .rules-bar b { color: var(--text); }
 
+.global-slots {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 18px;
+  margin-bottom: 18px;
+}
+.global-slots-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+.gs-row { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 10px; }
+.gs-cell {
+  min-width: 40px;
+  height: 26px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--muted);
+  background: rgba(136, 147, 163, 0.08);
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+  flex-grow: 1;
+}
+.gs-cell.past { opacity: 0.35; }
+.gs-cell.half { background: rgba(229, 164, 77, 0.28); border-color: rgba(229, 164, 77, 0.4); color: var(--text); }
+.gs-cell.full { background: var(--on-break); border-color: var(--on-break); color: #241704; }
+
+.board-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.board-column-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
 .board {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .row {
   background: var(--panel);
   border: 1px solid var(--border);
   border-left: 4px solid var(--border);
-  border-radius: 14px;
-  padding: 14px 18px;
+  border-radius: 12px;
+  padding: 10px 14px;
   transition: border-color 0.2s, background 0.2s;
 }
 
@@ -324,47 +397,15 @@ button:disabled { opacity: 0.3; cursor: not-allowed; }
 }
 .slot-time-display.unset { color: var(--muted); }
 
-.grid-wrap { margin: 10px 0 14px; }
-.grid-hint { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
-.grid-row { display: flex; flex-wrap: wrap; gap: 3px; }
-
-.cell {
-  width: 32px;
-  height: 30px;
-  border-radius: 5px;
-  font-size: 9.5px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  border: 1px solid transparent;
-  color: transparent;
+.slot-time-input {
   font-family: 'JetBrains Mono', monospace;
-  flex-shrink: 0;
-}
-.cell.hour-mark { color: rgba(238, 241, 246, 0.7); font-weight: 600; }
-.cell.open { background: rgba(91, 141, 239, 0.14); border-color: rgba(91, 141, 239, 0.18); }
-.cell.open:hover { background: rgba(91, 141, 239, 0.32); }
-.cell.pending { background: var(--accent); color: #0c1018; font-weight: 700; }
-.cell.mine-upcoming { background: rgba(91, 141, 239, 0.45); color: #eef1f6; cursor: default; }
-.cell.mine-break { background: var(--on-break); color: #241704; cursor: default; }
-.cell.mine-done { background: rgba(92, 100, 112, 0.55); color: #eef1f6; cursor: default; }
-.cell.full { background: rgba(92, 100, 112, 0.22); cursor: not-allowed; }
-.cell.blackout { background: rgba(229, 97, 95, 0.16); cursor: not-allowed; }
-
-.grid-full-msg {
-  font-size: 12.5px;
-  color: var(--muted);
+  font-size: 13px;
   background: var(--panel-hover);
   border: 1px solid var(--border);
-  border-radius: 9px;
-  padding: 10px 14px;
+  border-radius: 6px;
+  color: var(--text);
+  padding: 4px 6px;
 }
-.grid-full-msg b { color: var(--text); }
-
-.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 10.5px; color: var(--muted); margin: 8px 0 18px; }
-.legend span { display: inline-flex; align-items: center; gap: 5px; }
-.legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
 
 footer.note {
   text-align: center;
@@ -380,9 +421,11 @@ footer.note {
       <div class="brand-mark">SB</div>
       <div class="brand-title">Stars<span>Break</span></div>
     </div>
+    <div class="header-center">
+      <span class="pill-clock-big mono"><span id="kyiv-clock">--:--</span><span class="tz-label">KYIV</span></span>
+    </div>
     <div class="header-right">
       <span class="pill pill-live"><span class="pill-dot"></span>LIVE</span>
-      <span class="pill pill-clock mono" id="kyiv-clock">--:--</span>
       <span class="pill pill-sync" id="sync-pill"><span class="pill-dot"></span><span id="sync-label">Connecting…</span></span>
     </div>
   </header>
@@ -404,16 +447,21 @@ footer.note {
       <span>🍱 No breaks in the <b>last 30 min</b> of an agent's own shift</span>
     </div>
 
-    <div class="legend">
-      <span><i style="background: rgba(91, 141, 239, 0.5);"></i>Open</span>
-      <span><i style="background: var(--accent);"></i>Pending pick</span>
-      <span><i style="background: rgba(91, 141, 239, 0.6);"></i>Booked (upcoming)</span>
-      <span><i style="background: var(--on-break);"></i>On break</span>
-      <span><i style="background: rgba(92, 100, 112, 0.6);"></i>Done</span>
-      <span><i style="background: rgba(255, 93, 108, 0.3);"></i>Full / blackout</span>
+    <div class="global-slots" id="global-slots">
+      <div class="global-slots-title">Available Break Slots</div>
+      <div class="gs-row" id="gs-row"></div>
     </div>
 
-    <div class="board" id="board"></div>
+    <div class="board-columns">
+      <div class="board-column">
+        <div class="board-column-title">Rows 1-5</div>
+        <div class="board" id="board-left"></div>
+      </div>
+      <div class="board-column">
+        <div class="board-column-title">Rows 6-10</div>
+        <div class="board" id="board-right"></div>
+      </div>
+    </div>
     <footer class="note">Times are Kyiv time. Board refreshes from the schedule sheet every 60 seconds.</footer>
   </main>
 
@@ -440,6 +488,8 @@ const MAX_SLOTS_PER_AGENT = 3;
 const MAX_BREAK_MINUTES_PER_DAY = 60;
 const MAX_OVERLAP_MINUTES = 30;
 const SHIFT_END_BLACKOUT_MINUTES = 30;
+const SLOT_STEP_MINUTES = 15;
+const EXCLUDED_NAMES = ["jawhara"];
 
 // ---- Schedule parsing ----
 const STATUS_OFF = "OFF";
@@ -514,6 +564,7 @@ async function fetchOnShiftAgents(now = new Date()) {
     const name = row[1];
     if (!name) continue;
     if (name.trim().toLowerCase() === "management") break;
+    if (EXCLUDED_NAMES.includes(name.trim().toLowerCase())) continue;
     const shift = parseShiftCode(row[todayCol]);
     if (shift && isWithinShift(shift, nowMinutes)) {
       onShift.push({ name, shift });
@@ -553,7 +604,9 @@ function kyivClockString(date) {
 firebase.initializeApp(FIREBASE_CONFIG);
 const db = firebase.database();
 
-const boardEl = document.getElementById("board");
+const boardLeftEl = document.getElementById("board-left");
+const boardRightEl = document.getElementById("board-right");
+const gsRowEl = document.getElementById("gs-row");
 const statusEl = document.getElementById("status");
 const kyivClockEl = document.getElementById("kyiv-clock");
 const syncPillEl = document.getElementById("sync-pill");
@@ -561,8 +614,6 @@ const syncLabelEl = document.getElementById("sync-label");
 
 let onShiftAgents = [];
 let breakState = {}; // { [agentName]: { [slotId]: { start: "HH:MM", end: "HH:MM", started: bool } } }
-let pendingSelection = null; // { agentName, startMin }
-const GRID_STEP_MINUTES = 15;
 
 function todayKey(now = new Date()) {
   const { h } = kyivPartsFromDate(now);
@@ -705,10 +756,13 @@ function render() {
   document.getElementById("stat-done").textContent = doneCount;
   document.getElementById("stat-max").textContent = maxConcurrent;
 
-  boardEl.innerHTML = "";
+  boardLeftEl.innerHTML = "";
+  boardRightEl.innerHTML = "";
+  renderGlobalSlots(nowMinutes, maxConcurrent);
 
   for (let i = 0; i < MAX_AGENT_ROWS; i++) {
     const agent = onShiftAgents[i];
+    const boardEl = i < MAX_AGENT_ROWS / 2 ? boardLeftEl : boardRightEl;
     const row = document.createElement("div");
     row.className = "row";
 
@@ -763,8 +817,6 @@ function render() {
     head.append(avatar, nameBlock, usage, statusPill);
     row.appendChild(head);
 
-    row.appendChild(buildGrid(agent, nowMinutes));
-
     const slotsEl = document.createElement("div");
     slotsEl.className = "slots";
 
@@ -777,17 +829,38 @@ function render() {
       label.className = "slot-num";
       label.textContent = `Break ${slotIndex + 1}`;
 
-      const timeDisplay = document.createElement("span");
-      const hasTime = slot.start && slot.end;
-      timeDisplay.className = `slot-time-display ${hasTime ? "" : "unset"}`;
-      timeDisplay.textContent = hasTime
-        ? `${slot.start} → ${slot.end}  (${timeToMinutes(slot.end) - timeToMinutes(slot.start)}m)`
-        : "Pick a time on the grid above";
-
       const errorEl = document.createElement("span");
       errorEl.className = "slot-error";
 
-      slotEl.append(label, timeDisplay);
+      const hasTime = slot.start && slot.end;
+
+      if (hasTime) {
+        const timeDisplay = document.createElement("span");
+        timeDisplay.className = "slot-time-display";
+        timeDisplay.textContent = `${slot.start} → ${slot.end}  (${timeToMinutes(slot.end) - timeToMinutes(slot.start)}m)`;
+        slotEl.append(label, timeDisplay);
+      } else {
+        const startInput = document.createElement("input");
+        startInput.type = "time";
+        startInput.className = "slot-time-input";
+        const endInput = document.createElement("input");
+        endInput.type = "time";
+        endInput.className = "slot-time-input";
+        const saveBtn = document.createElement("button");
+        saveBtn.className = "btn-start";
+        saveBtn.textContent = "Save";
+        saveBtn.addEventListener("click", async () => {
+          saveBtn.disabled = true;
+          const error = await saveSlot(agent, slot.id, slotIndex, startInput.value, endInput.value);
+          if (error) {
+            errorEl.textContent = error;
+            saveBtn.disabled = false;
+          } else {
+            render();
+          }
+        });
+        slotEl.append(label, startInput, endInput, saveBtn);
+      }
 
       if (slot.start && slot.end) {
         if (status === "break") {
@@ -844,110 +917,48 @@ function render() {
   }
 }
 
-function buildGrid(agent, nowMinutes) {
-  const wrap = document.createElement("div");
-  wrap.className = "grid-wrap";
-
-  const hint = document.createElement("div");
-  hint.className = "grid-hint";
-  const isPending = pendingSelection && pendingSelection.agentName === agent.name;
-  hint.textContent = isPending
-    ? `Pick the end of this break (started at ${minutesToTime(pendingSelection.startMin)}) — click again to cancel.`
-    : "Click a start cell, then an end cell to book a break (splits allowed, up to 60 min total).";
-  wrap.appendChild(hint);
-
-  const gridRow = document.createElement("div");
-  gridRow.className = "grid-row";
-
-  const { startMinutes, endMinutes } = agent.shift;
-  const maxConcurrent = maxConcurrentBreaks(onShiftAgents.length);
-  const usedMins = agentBookedMinutes(agent.name);
-  const slotsCount = agentSlots(agent.name).length;
-
-  if (!isPending && (usedMins >= MAX_BREAK_MINUTES_PER_DAY || slotsCount >= MAX_SLOTS_PER_AGENT)) {
-    hint.textContent = "";
-    const msg = document.createElement("div");
-    msg.className = "grid-full-msg";
-    msg.innerHTML =
-      usedMins >= MAX_BREAK_MINUTES_PER_DAY
-        ? "All <b>60 minutes</b> booked for today. Clear a break below to free up time."
-        : `All <b>${MAX_SLOTS_PER_AGENT} slots</b> used. Clear a break below to pick a new time.`;
-    wrap.appendChild(msg);
-    return wrap;
+function shiftUnionRange() {
+  if (!onShiftAgents.length) return null;
+  let minStart = Infinity;
+  let maxEnd = -Infinity;
+  for (const agent of onShiftAgents) {
+    minStart = Math.min(minStart, agent.shift.startMinutes);
+    maxEnd = Math.max(maxEnd, agent.shift.startMinutes + ((agent.shift.endMinutes - agent.shift.startMinutes + 1440) % 1440 || 1440));
   }
-
-  let m = startMinutes;
-  let guard = 0;
-  while (((m - startMinutes + 1440) % 1440) < ((endMinutes - startMinutes + 1440) % 1440 || 1440) && guard < 200) {
-    const minute = m % 1440;
-    const cell = document.createElement("div");
-    cell.className = "cell";
-    if (minute % 60 === 0) {
-      cell.classList.add("hour-mark");
-      cell.textContent = minutesToTime(minute);
-    }
-
-    const ownSlot = agentSlots(agent.name).find((slot) => {
-      if (!slot.start || !slot.end) return false;
-      const s = timeToMinutes(slot.start);
-      const e = timeToMinutes(slot.end);
-      return minute >= s && minute < e;
-    });
-
-    let clickable = false;
-    if (ownSlot) {
-      const status = slotStatus(ownSlot, nowMinutes);
-      cell.classList.add(
-        status === "break" ? "mine-break" : status === "done" || status === "missed" ? "mine-done" : "mine-upcoming"
-      );
-    } else if (minuteInBlackout(agent.shift, minute)) {
-      cell.classList.add("blackout");
-    } else if (overlappingAgentsAtMinute(minute, agent.name) >= maxConcurrent) {
-      cell.classList.add("full");
-    } else if (isPending && minute === pendingSelection.startMin) {
-      cell.classList.add("pending");
-      clickable = true;
-    } else {
-      cell.classList.add("open");
-      clickable = true;
-    }
-
-    if (clickable) {
-      cell.addEventListener("click", () => handleGridClick(agent, minute));
-    }
-
-    gridRow.appendChild(cell);
-    m += GRID_STEP_MINUTES;
-    guard++;
-  }
-
-  wrap.appendChild(gridRow);
-  return wrap;
+  return { startMinutes: minStart, endMinutes: maxEnd };
 }
 
-async function handleGridClick(agent, minute) {
-  if (!pendingSelection || pendingSelection.agentName !== agent.name) {
-    pendingSelection = { agentName: agent.name, startMin: minute };
-    render();
-    return;
-  }
+function renderGlobalSlots(nowMinutes, maxConcurrent) {
+  gsRowEl.innerHTML = "";
+  const range = shiftUnionRange();
+  if (!range) return;
 
-  if (minute === pendingSelection.startMin) {
-    pendingSelection = null;
-    render();
-    return;
-  }
+  let m = range.startMinutes;
+  let guard = 0;
+  while (m < range.endMinutes && guard < 200) {
+    const minute = m % 1440;
+    const cell = document.createElement("div");
+    cell.className = "gs-cell";
+    cell.textContent = minutesToTime(minute);
 
-  const startMin = Math.min(pendingSelection.startMin, minute);
-  const endMin = Math.max(pendingSelection.startMin, minute) + GRID_STEP_MINUTES;
-  pendingSelection = null;
+    if (minute < nowMinutes) cell.classList.add("past");
 
-  const error = await saveSlot(agent, null, null, minutesToTime(startMin), minutesToTime(endMin));
-  if (error) {
-    statusEl.textContent = error;
-    setTimeout(() => { if (statusEl.textContent === error) statusEl.textContent = ""; }, 4000);
+    const covered = overlappingAgentsAtMinute(minute);
+    if (covered > 0) {
+      if (covered >= maxConcurrent) {
+        cell.classList.add("full");
+        cell.title = "Fully booked";
+      } else {
+        cell.classList.add("half");
+        cell.textContent = `${covered}/${maxConcurrent}`;
+        cell.title = `${covered}/${maxConcurrent} slots filled`;
+      }
+    }
+
+    gsRowEl.appendChild(cell);
+    m += SLOT_STEP_MINUTES;
+    guard++;
   }
-  render();
 }
 
 async function saveSlot(agent, slotId, slotIndex, startValue, endValue) {
