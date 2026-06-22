@@ -291,8 +291,9 @@ const FIREBASE_CONFIG = {
 };
 
 const SCHEDULE_REFRESH_MS = 60 * 1000;
-const MAX_AGENT_ROWS = 8;
+const MAX_AGENT_ROWS = 10;
 const TWO_BREAK_THRESHOLD = 6;
+const MAX_SLOTS_PER_AGENT = 3;
 
 // ---- Schedule parsing ----
 const STATUS_OFF = "OFF";
@@ -553,7 +554,10 @@ function render() {
 
     const addButton = document.createElement("button");
     addButton.className = "add-break";
-    addButton.textContent = "Add break";
+    const slotsUsed = slots.length;
+    addButton.textContent =
+      slotsUsed >= MAX_SLOTS_PER_AGENT ? "All slots booked" : `Add break (${slotsUsed}/${MAX_SLOTS_PER_AGENT})`;
+    addButton.disabled = slotsUsed >= MAX_SLOTS_PER_AGENT;
     addButton.addEventListener("click", () => {
       openBookingFor = openBookingFor === agent.name ? null : agent.name;
       render();
@@ -608,6 +612,9 @@ async function bookBreak(agentName, startValue, endValue) {
   const endMin = timeToMinutes(endValue);
 
   if (startMin === null || endMin === null) return "Pick a start and end time.";
+  if (agentSlots(agentName).length >= MAX_SLOTS_PER_AGENT) {
+    return `Max ${MAX_SLOTS_PER_AGENT} break slots per day.`;
+  }
   if (startMin % SLOT_STEP_MINUTES !== 0 || endMin % SLOT_STEP_MINUTES !== 0) {
     return "Times must be in 15-minute steps.";
   }
