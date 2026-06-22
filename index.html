@@ -220,14 +220,17 @@ header {
 }
 .gs-row { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 12px; }
 .gs-cell {
+  position: relative;
   min-width: 64px;
   height: 40px;
   border-radius: 7px;
   font-size: 14px;
   font-weight: 700;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  line-height: 1.1;
   font-family: 'JetBrains Mono', monospace;
   color: var(--muted);
   background: rgba(136, 147, 163, 0.08);
@@ -235,6 +238,7 @@ header {
   flex-shrink: 0;
   flex-grow: 1;
 }
+.gs-cell .gs-count { font-size: 9.5px; font-weight: 600; opacity: 0.75; letter-spacing: 0.3px; }
 .gs-cell.past { opacity: 0.35; }
 .gs-cell.half { background: rgba(229, 164, 77, 0.4); border-color: rgba(229, 164, 77, 0.55); color: var(--text); }
 .gs-cell.full { background: var(--danger); border-color: var(--danger); color: #2a0a09; }
@@ -243,6 +247,18 @@ header {
 .gs-cell.clickable.half { background: rgba(229, 164, 77, 0.4); color: var(--text); }
 .gs-cell.clickable:hover { background: rgba(91, 141, 239, 0.28); border-color: var(--accent); }
 .gs-cell.pending { background: var(--accent); border-color: var(--accent); color: #fff; }
+.gs-cell.now-marker::before {
+  content: 'NOW';
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.5px;
+  font-family: 'JetBrains Mono', monospace;
+}
 
 .board-columns {
   display: grid;
@@ -541,7 +557,6 @@ const EXCLUDED_NAMES = ["jawhara"];
 // ---- Schedule parsing ----
 const STATUS_OFF = "OFF";
 const STATUS_PROBATION = "OB";
-const WEEKDAY_ABBR = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function parseCsv(text) {
   return text
@@ -553,8 +568,11 @@ function parseCsv(text) {
 // The sheet's date header is split across two rows: one has the weekday
 // abbreviation ("Mon"), the row right below has the day number ("22").
 function findTodayColumn(weekdayRow, dayRow, today = new Date()) {
-  const day = today.getDate();
-  const weekday = WEEKDAY_ABBR[today.getDay()].toLowerCase();
+  // The board is always anchored to Kyiv time, so the "today" column must be
+  // chosen using Kyiv's calendar date - not the viewer's local date, which
+  // can already be on the next day while it's still "today" in Kyiv (or vice
+  // versa), causing the whole board to read tomorrow's/yesterday's shifts.
+  const { day, weekday } = kyivDateParts(today);
   for (let col = 1; col < dayRow.length; col++) {
     const wdCell = (weekdayRow[col] || "").trim().toLowerCase();
     const dayCell = (dayRow[col] || "").trim();
@@ -586,10 +604,24 @@ function parseShiftCode(cell) {
   return { startMinutes: startH * 60 + startM, endMinutes: endH * 60 + endM };
 }
 
-function isWithinShift(shift, nowMinutes) {
+// A shift code is recorded under the calendar day it starts on. For an
+// overnight shift (e.g. "23-07" on the 25th), only the evening portion
+// (>= start) belongs to that same day - the morning portion (< end) actually
+// happens on the 26th, so it must be checked against *that* day's column
+// instead, via isOnShiftFromYesterday below.
+function isOnShiftToday(shift, nowMinutes) {
   const { startMinutes, endMinutes } = shift;
   if (startMinutes <= endMinutes) return nowMinutes >= startMinutes && nowMinutes < endMinutes;
-  return nowMinutes >= startMinutes || nowMinutes < endMinutes; // overnight
+  return nowMinutes >= startMinutes;
+}
+
+// Whether an overnight shift recorded under *yesterday's* column is still
+// covering the current Kyiv minute this morning (e.g. "23-07" on the 25th
+// is still on-shift at 02:00 on the 26th).
+function isOnShiftFromYesterday(shift, nowMinutes) {
+  const { startMinutes, endMinutes } = shift;
+  if (startMinutes <= endMinutes) return false; // not an overnight shift, can't continue into today
+  return nowMinutes < endMinutes;
 }
 
 async function fetchOnShiftAgents(now = new Date()) {
@@ -603,6 +635,12 @@ async function fetchOnShiftAgents(now = new Date()) {
   const todayCol = findTodayColumn(rows[1] || [], rows[2] || [], now);
   if (todayCol === -1) throw new Error("Could not find today's date column in the schedule sheet.");
 
+  // Also locate yesterday's column so overnight shifts (e.g. "23-07" entered
+  // under yesterday's date) are still recognized after Kyiv midnight, when
+  // "today's" column has already flipped to a new date.
+  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const yesterdayCol = findTodayColumn(rows[1] || [], rows[2] || [], yesterday);
+
   const agentsHeaderIdx = findAgentsHeaderRow(rows);
   const agentRows = agentsHeaderIdx === -1 ? rows.slice(3) : rows.slice(agentsHeaderIdx + 1);
 
@@ -612,9 +650,16 @@ async function fetchOnShiftAgents(now = new Date()) {
     if (!name) continue;
     if (name.trim().toLowerCase() === "management") break;
     if (EXCLUDED_NAMES.includes(name.trim().toLowerCase())) continue;
-    const shift = parseShiftCode(row[todayCol]);
-    if (shift && isWithinShift(shift, nowMinutes)) {
-      onShift.push({ name, shift });
+
+    const todayShift = parseShiftCode(row[todayCol]);
+    if (todayShift && isOnShiftToday(todayShift, nowMinutes)) {
+      onShift.push({ name, shift: todayShift });
+      continue;
+    }
+
+    const yesterdayShift = yesterdayCol !== -1 ? parseShiftCode(row[yesterdayCol]) : null;
+    if (yesterdayShift && isOnShiftFromYesterday(yesterdayShift, nowMinutes)) {
+      onShift.push({ name, shift: yesterdayShift });
     }
   }
 
@@ -645,6 +690,11 @@ function kyivMinutesFromDate(date) {
 function kyivClockString(date) {
   const { h, m, s } = kyivPartsFromDate(date);
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+function kyivDateParts(date) {
+  const day = parseInt(date.toLocaleString("en-US", { timeZone: "Europe/Kyiv", day: "numeric" }), 10);
+  const weekday = date.toLocaleString("en-US", { timeZone: "Europe/Kyiv", weekday: "short" }).toLowerCase();
+  return { day, weekday };
 }
 
 // ---- App ----
@@ -703,7 +753,7 @@ function slotEndAbs(startMin, endMin) {
 }
 
 // Wrap-aware "is this clock minute inside [start, end)" check, matching the
-// overnight-wrap pattern already used by isWithinShift/minuteInBlackout.
+// overnight-wrap pattern already used by isOnShiftToday/minuteInBlackout.
 function minuteInSlotRange(minute, start, end, inclusiveEnd) {
   if (start <= end) return inclusiveEnd ? minute >= start && minute <= end : minute >= start && minute < end;
   return inclusiveEnd ? minute >= start || minute <= end : minute >= start || minute < end;
@@ -1070,17 +1120,31 @@ function renderGlobalSlots(nowMinutes, maxConcurrent) {
   let m = range.startMinutes;
   let guard = 0;
   while (m < range.endMinutes && guard < 200) {
-    const minute = m % 1440;
+    // Capture this iteration's absolute minute by value - `m` itself keeps
+    // mutating after this loop finishes, so any closure that captured `m`
+    // directly would see its final loop-exit value on every click.
+    const abs = m;
+    const minute = abs % 1440;
     const cell = document.createElement("div");
     cell.className = "gs-cell";
-    cell.textContent = minutesToTime(minute);
 
-    const isPast = m < nowAbsolute;
+    const timeLabel = document.createElement("span");
+    timeLabel.textContent = minutesToTime(minute);
+    cell.appendChild(timeLabel);
+
+    const isPast = abs < nowAbsolute;
     if (isPast) cell.classList.add("past");
+
+    const isNow = abs <= nowAbsolute && nowAbsolute < abs + SLOT_STEP_MINUTES;
+    if (isNow) cell.classList.add("now-marker");
 
     const covered = overlappingAgentsAtMinuteDisplay(minute);
     let isFull = false;
     if (covered > 0) {
+      const countLabel = document.createElement("span");
+      countLabel.className = "gs-count";
+      countLabel.textContent = `${covered}/${maxConcurrent}`;
+      cell.appendChild(countLabel);
       if (covered >= maxConcurrent) {
         isFull = true;
         cell.classList.add("full");
@@ -1097,13 +1161,13 @@ function renderGlobalSlots(nowMinutes, maxConcurrent) {
       if (!inBlackout) clickable = true;
     }
 
-    if (pendingGlobalSelection && selectedAgent && pendingGlobalSelection.agentName === selectedAgent.name && m === pendingGlobalSelection.startAbs) {
+    if (pendingGlobalSelection && selectedAgent && pendingGlobalSelection.agentName === selectedAgent.name && abs === pendingGlobalSelection.startAbs) {
       cell.classList.add("pending");
     }
 
     if (clickable) {
       cell.classList.add("clickable");
-      cell.addEventListener("click", () => handleGlobalSlotClick(selectedAgent, m));
+      cell.addEventListener("click", () => handleGlobalSlotClick(selectedAgent, abs));
     }
 
     gsRowEl.appendChild(cell);
