@@ -1043,9 +1043,8 @@ function renderGlobalSlots(nowMinutes, maxConcurrent) {
 
     let clickable = false;
     if (selectedAgent && canBookMore && !isPast && !isFull) {
-      const inOwnShift = isWithinShift(selectedAgent.shift, minute);
       const inBlackout = minuteInBlackout(selectedAgent.shift, minute);
-      if (inOwnShift && !inBlackout) clickable = true;
+      if (!inBlackout) clickable = true;
     }
 
     if (pendingGlobalSelection && minute === pendingGlobalSelection.startMin) {
