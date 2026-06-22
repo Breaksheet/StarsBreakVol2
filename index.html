@@ -4,20 +4,24 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>StarsBreak</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg: #0b0d12;
-  --bg-grad-1: #11151f;
-  --bg-grad-2: #0b0d12;
-  --panel: #161a23;
-  --panel-hover: #1c2129;
-  --border: #262b36;
-  --text: #eef0f3;
-  --muted: #8a8f99;
-  --accent: #6c5ce7;
-  --available: #2ecc71;
-  --on-break: #f1c40f;
-  --danger: #e74c3c;
+  --bg: #07110f;
+  --bg-grad-1: #0d1f1a;
+  --bg-grad-2: #07110f;
+  --panel: #0f1d19;
+  --panel-hover: #142a24;
+  --border: #1d3b32;
+  --text: #eef7f1;
+  --muted: #7a9389;
+  --accent: #2dd4a7;
+  --accent2: #f5b942;
+  --available: #2dd4a7;
+  --upcoming: #4fa9ff;
+  --on-break: #f5b942;
+  --done: #6b7785;
+  --danger: #ff5d6c;
 }
 
 * { box-sizing: border-box; }
@@ -25,254 +29,383 @@
 body {
   margin: 0;
   min-height: 100vh;
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-  background: radial-gradient(1200px 600px at 50% -10%, var(--bg-grad-1), var(--bg-grad-2));
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  background: radial-gradient(1100px 600px at 15% -10%, var(--bg-grad-1), var(--bg-grad-2) 60%);
   color: var(--text);
 }
+
+.mono { font-family: 'JetBrains Mono', monospace; }
 
 header {
-  padding: 40px 24px 16px;
-  text-align: center;
-}
-
-h1 {
-  margin: 0 0 6px;
-  font-size: 34px;
-  font-weight: 800;
-  letter-spacing: 0.5px;
-  background: linear-gradient(135deg, #8e7cff, #6c5ce7 60%, #4834d4);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
-.kyiv-clock {
-  margin: 6px 0;
-  color: var(--muted);
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.3px;
-}
-
-.capacity {
-  display: inline-block;
-  margin: 10px 0 4px;
-  color: var(--text);
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 6px 16px;
-  font-size: 13px;
-}
-
-.status {
-  margin: 8px 0;
-  color: var(--danger);
-  font-size: 13px;
-  min-height: 16px;
-}
-
-.board {
-  max-width: 680px;
-  margin: 16px auto 60px;
+  padding: 22px 26px;
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 0 16px;
-}
-
-.row {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 16px;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-left: 4px solid var(--border);
-  border-radius: 14px;
-  padding: 16px 20px;
-  position: relative;
+  justify-content: space-between;
+  gap: 14px;
   flex-wrap: wrap;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: rgba(7, 17, 15, 0.85);
+  backdrop-filter: blur(10px);
+  z-index: 50;
 }
 
-.row:not(.empty):hover {
-  transform: translateY(-2px);
-  background: var(--panel-hover);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.row.available {
-  border-left-color: var(--available);
-}
-
-.row.on-break {
-  border-left-color: var(--on-break);
-}
-
-.row.empty {
-  color: var(--muted);
-  justify-content: center;
-  grid-template-columns: 1fr;
-  opacity: 0.4;
-  box-shadow: none;
-}
-
-.avatar {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
+.brand-mark {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--accent), #18a87f);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
   font-size: 16px;
-  color: #0b0d12;
-  background: linear-gradient(135deg, #8e7cff, #4834d4);
+  color: #04241c;
   flex-shrink: 0;
 }
 
-.row.on-break .avatar {
-  background: linear-gradient(135deg, #f1c40f, #d68910);
+.brand-title {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
 }
 
-.name {
-  font-weight: 600;
-  font-size: 16px;
+.brand-title span { color: var(--accent); }
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
-.badge {
-  font-size: 12px;
-  font-weight: 600;
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 13px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  white-space: nowrap;
+}
+
+.pill-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.pill-live .pill-dot { background: var(--accent); animation: blink 1.1s ease-in-out infinite; }
+.pill-clock { color: var(--upcoming); border-color: rgba(79, 169, 255, 0.3); background: rgba(79, 169, 255, 0.07); }
+.pill-sync { color: var(--muted); }
+.pill-sync.ok .pill-dot { background: var(--accent); }
+.pill-sync.syncing .pill-dot { background: var(--on-break); animation: blink 0.7s infinite; }
+.pill-sync.err .pill-dot { background: var(--danger); }
+
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+
+.main { max-width: 1100px; margin: 0 auto; padding: 22px 18px 60px; }
+
+.banner {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 18px;
+  font-size: 13px;
   color: var(--muted);
+  margin-bottom: 18px;
+}
+.banner strong { color: var(--text); }
+
+.status-msg {
+  color: var(--danger);
+  font-size: 13px;
+  margin-bottom: 12px;
+  min-height: 16px;
+}
+
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.stat {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.stat-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.stat-value {
+  font-size: 26px;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+}
+.stat-value.accent { color: var(--accent); }
+.stat-value.warn { color: var(--on-break); }
+
+.rules-bar {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 18px;
+  margin-bottom: 18px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.rules-bar b { color: var(--text); }
+
+.board {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.row {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 18px;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.row.available { border-left-color: var(--available); }
+.row.on-break { border-left-color: var(--on-break); background: rgba(245, 185, 66, 0.05); }
+.row.done { border-left-color: var(--done); opacity: 0.75; }
+
+.row.empty {
+  text-align: center;
+  color: var(--muted);
+  opacity: 0.4;
+  padding: 16px;
+  box-shadow: none;
+  border-left-color: var(--border);
+}
+
+.row-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  color: #04241c;
+  background: linear-gradient(135deg, var(--accent), #18a87f);
+  flex-shrink: 0;
+}
+.row.on-break .avatar { background: linear-gradient(135deg, var(--on-break), #d99423); color: #2a1c02; }
+
+.name-block { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.name { font-weight: 600; font-size: 15px; }
+.shift-range { font-size: 11.5px; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+
+.status-pill {
+  margin-left: auto;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  padding: 4px 10px;
+  border-radius: 999px;
   display: inline-flex;
   align-items: center;
   gap: 5px;
 }
+.status-pill.idle { background: rgba(122, 147, 137, 0.12); color: var(--muted); }
+.status-pill.break { background: rgba(245, 185, 66, 0.16); color: var(--on-break); }
+.status-pill.upcoming { background: rgba(79, 169, 255, 0.14); color: var(--upcoming); }
+.status-pill.done { background: rgba(107, 119, 133, 0.16); color: var(--done); }
 
-.badge::before {
-  content: "";
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--available);
-}
-
-.row.on-break .badge::before {
-  background: var(--on-break);
-}
-
-button {
-  border: none;
-  border-radius: 8px;
-  padding: 9px 16px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  background: var(--available);
-  color: #0b0d12;
-  transition: filter 0.15s ease, transform 0.1s ease;
-}
-
-button:hover {
-  filter: brightness(1.08);
-}
-
-button:active {
-  transform: scale(0.97);
-}
-
-.row.on-break button {
-  background: var(--on-break);
-}
-
-button:disabled {
-  background: var(--border);
+.usage {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
   color: var(--muted);
-  cursor: not-allowed;
+  font-family: 'JetBrains Mono', monospace;
 }
+.usage-bar { width: 70px; height: 5px; border-radius: 3px; background: var(--border); overflow: hidden; }
+.usage-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width 0.3s; }
+.usage-fill.full { background: var(--on-break); }
 
-.info {
+.slots {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  min-width: 0;
-}
-
-.slot-list {
-  display: flex;
-  flex-wrap: wrap;
   gap: 6px;
 }
 
-.slot-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  background: var(--border);
-  color: var(--text);
-  font-size: 12px;
-  padding: 4px 6px 4px 10px;
-  border-radius: 999px;
-}
-
-.slot-remove {
-  background: none;
-  border: none;
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 1;
-  padding: 0 4px;
-  cursor: pointer;
-}
-
-.add-break {
-  background: transparent;
-  border: 1px solid var(--accent);
-  color: #b3a4ff;
-}
-
-.add-break:hover {
-  background: rgba(108, 92, 231, 0.15);
-  filter: none;
-}
-
-.booking-form {
-  grid-column: 1 / -1;
+.slot {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
+  gap: 8px;
   flex-wrap: wrap;
+  background: var(--panel-hover);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 6px 10px;
 }
 
-.booking-form input[type="time"] {
+.slot-num { font-size: 11px; color: var(--muted); font-family: 'JetBrains Mono', monospace; min-width: 46px; }
+
+input[type="time"] {
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 7px;
   color: var(--text);
-  padding: 8px 10px;
-  font-size: 13px;
+  padding: 5px 8px;
+  font-size: 12.5px;
+  font-family: 'JetBrains Mono', monospace;
 }
 
-.booking-error {
-  color: var(--danger);
+.arrow { color: var(--muted); font-size: 12px; }
+
+button {
+  border: none;
+  border-radius: 7px;
+  padding: 6px 12px;
   font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Space Grotesk', sans-serif;
+  transition: filter 0.15s, transform 0.1s, opacity 0.15s;
+}
+button:active { transform: scale(0.96); }
+button:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.btn-start { background: rgba(45, 212, 167, 0.16); color: var(--accent); border: 1px solid rgba(45, 212, 167, 0.4); }
+.btn-start:not(:disabled):hover { background: rgba(45, 212, 167, 0.28); }
+.btn-stop { background: rgba(245, 185, 66, 0.18); color: var(--on-break); border: 1px solid rgba(245, 185, 66, 0.4); }
+.btn-stop:not(:disabled):hover { background: rgba(245, 185, 66, 0.3); }
+.btn-clear { background: transparent; color: var(--muted); border: 1px solid var(--border); margin-left: auto; }
+.btn-clear:not(:disabled):hover { color: var(--danger); border-color: var(--danger); }
+
+.slot-error { color: var(--danger); font-size: 11px; width: 100%; }
+
+.slot-time-display {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12.5px;
+  min-width: 150px;
+  color: var(--text);
+}
+.slot-time-display.unset { color: var(--muted); }
+
+.grid-wrap { margin: 10px 0 12px; }
+.grid-hint { font-size: 10.5px; color: var(--muted); margin-bottom: 6px; }
+.grid-row { display: flex; flex-wrap: wrap; gap: 2px; }
+
+.cell {
+  width: 19px;
+  height: 22px;
+  border-radius: 4px;
+  font-size: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: 1px solid transparent;
+  color: transparent;
+  font-family: 'JetBrains Mono', monospace;
+  flex-shrink: 0;
+}
+.cell.hour-mark { color: rgba(238, 247, 241, 0.55); }
+.cell.open { background: rgba(45, 212, 167, 0.16); }
+.cell.open:hover { background: rgba(45, 212, 167, 0.34); }
+.cell.pending { background: var(--accent); color: #04241c; font-weight: 700; }
+.cell.mine-upcoming { background: rgba(79, 169, 255, 0.4); cursor: default; }
+.cell.mine-break { background: var(--on-break); cursor: default; }
+.cell.mine-done { background: rgba(107, 119, 133, 0.4); cursor: default; }
+.cell.full { background: rgba(255, 93, 108, 0.18); cursor: not-allowed; }
+.cell.blackout { background: repeating-linear-gradient(45deg, rgba(255, 93, 108, 0.12), rgba(255, 93, 108, 0.12) 3px, transparent 3px, transparent 6px); cursor: not-allowed; }
+
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 10.5px; color: var(--muted); margin: 8px 0 18px; }
+.legend span { display: inline-flex; align-items: center; gap: 5px; }
+.legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+footer.note {
+  text-align: center;
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 22px;
 }
 </style>
 </head>
 <body>
   <header>
-    <h1>StarsBreak</h1>
-    <p id="kyiv-clock" class="kyiv-clock"></p>
-    <p id="capacity" class="capacity"></p>
-    <p id="status" class="status"></p>
+    <div class="brand">
+      <div class="brand-mark">SB</div>
+      <div class="brand-title">Stars<span>Break</span></div>
+    </div>
+    <div class="header-right">
+      <span class="pill pill-live"><span class="pill-dot"></span>LIVE</span>
+      <span class="pill pill-clock mono" id="kyiv-clock">--:--</span>
+      <span class="pill pill-sync" id="sync-pill"><span class="pill-dot"></span><span id="sync-label">Connecting…</span></span>
+    </div>
   </header>
 
-  <main id="board" class="board"></main>
+  <main class="main">
+    <div class="banner">🔄 Schedule pulled automatically from the shift sheet every minute — <strong>no manual setup needed.</strong></div>
+    <p class="status-msg" id="status"></p>
+
+    <div class="stats-row">
+      <div class="stat"><div class="stat-label">On Shift</div><div class="stat-value" id="stat-shift">0</div></div>
+      <div class="stat"><div class="stat-label">On Break Now</div><div class="stat-value warn" id="stat-break">0</div></div>
+      <div class="stat"><div class="stat-label">Breaks Done</div><div class="stat-value accent" id="stat-done">0</div></div>
+      <div class="stat"><div class="stat-label">Max Concurrent</div><div class="stat-value" id="stat-max">1</div></div>
+    </div>
+
+    <div class="rules-bar">
+      <span>🕐 <b>60 min</b> total per agent, up to <b>3 slots</b></span>
+      <span>👥 <b>2 concurrent</b> breaks once 6+ agents are on shift, otherwise 1</span>
+      <span>🍱 No breaks in the <b>last 30 min</b> of an agent's own shift</span>
+    </div>
+
+    <div class="legend">
+      <span><i style="background: rgba(45, 212, 167, 0.5);"></i>Open</span>
+      <span><i style="background: var(--accent);"></i>Pending pick</span>
+      <span><i style="background: rgba(79, 169, 255, 0.6);"></i>Booked (upcoming)</span>
+      <span><i style="background: var(--on-break);"></i>On break</span>
+      <span><i style="background: rgba(107, 119, 133, 0.6);"></i>Done</span>
+      <span><i style="background: rgba(255, 93, 108, 0.3);"></i>Full / blackout</span>
+    </div>
+
+    <div class="board" id="board"></div>
+    <footer class="note">Times are Kyiv time. Board refreshes from the schedule sheet every 60 seconds.</footer>
+  </main>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
@@ -294,10 +427,14 @@ const SCHEDULE_REFRESH_MS = 60 * 1000;
 const MAX_AGENT_ROWS = 10;
 const TWO_BREAK_THRESHOLD = 6;
 const MAX_SLOTS_PER_AGENT = 3;
+const MAX_BREAK_MINUTES_PER_DAY = 60;
+const MAX_OVERLAP_MINUTES = 30;
+const SHIFT_END_BLACKOUT_MINUTES = 30;
 
 // ---- Schedule parsing ----
 const STATUS_OFF = "OFF";
 const STATUS_PROBATION = "OB";
+const WEEKDAY_ABBR = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function parseCsv(text) {
   return text
@@ -306,15 +443,11 @@ function parseCsv(text) {
     .map((line) => line.split(",").map((cell) => cell.trim().replace(/^"|"$/g, "")));
 }
 
-const WEEKDAY_ABBR = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-// The sheet's date header is split across two separate rows: one row has the
-// weekday abbreviation ("Mon", "Tue", ...) and the row right below it has the
-// day-of-month number ("22"). We find the column where both match today.
+// The sheet's date header is split across two rows: one has the weekday
+// abbreviation ("Mon"), the row right below has the day number ("22").
 function findTodayColumn(weekdayRow, dayRow, today = new Date()) {
   const day = today.getDate();
   const weekday = WEEKDAY_ABBR[today.getDay()].toLowerCase();
-
   for (let col = 1; col < dayRow.length; col++) {
     const wdCell = (weekdayRow[col] || "").trim().toLowerCase();
     const dayCell = (dayRow[col] || "").trim();
@@ -323,23 +456,16 @@ function findTodayColumn(weekdayRow, dayRow, today = new Date()) {
   return -1;
 }
 
-// Finds the row index of the "Agents" section marker, so we know where the
-// agent table starts (the rows above it are just the date header grid).
 function findAgentsHeaderRow(rows) {
   return rows.findIndex((row) => row.some((cell) => (cell || "").trim().toLowerCase() === "agents"));
 }
 
-// Shift codes look like "09-17" or "14-22" (24h HH-HH). A leading "T"
-// (e.g. "T7-15") marks a ticket-duty shift — the agent works that shift but
-// isn't on phones, so they're excluded from the board entirely. Returns
-// { startMinutes, endMinutes } or null if the cell isn't a phone shift
-// (OFF/OB/ticket-duty/empty).
+// Shift codes look like "09-17" or "14-22" (24h HH-HH). A leading "T" marks
+// ticket-duty (works that shift, not on phones) - excluded entirely.
 function parseShiftCode(cell) {
   if (!cell) return null;
   const normalized = cell.trim().toUpperCase();
-  if (normalized === STATUS_OFF || normalized === STATUS_PROBATION || normalized === "") {
-    return null;
-  }
+  if (normalized === STATUS_OFF || normalized === STATUS_PROBATION || normalized === "") return null;
   if (normalized.startsWith("T")) return null;
 
   const match = normalized.match(/^(\d{1,2}):?(\d{2})?-(\d{1,2}):?(\d{2})?$/);
@@ -350,24 +476,15 @@ function parseShiftCode(cell) {
   const endH = parseInt(match[3], 10);
   const endM = parseInt(match[4] || "0", 10);
 
-  return {
-    startMinutes: startH * 60 + startM,
-    endMinutes: endH * 60 + endM,
-  };
+  return { startMinutes: startH * 60 + startM, endMinutes: endH * 60 + endM };
 }
 
-function isWithinShift(shift, now = new Date()) {
-  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+function isWithinShift(shift, nowMinutes) {
   const { startMinutes, endMinutes } = shift;
-
-  if (startMinutes <= endMinutes) {
-    return nowMinutes >= startMinutes && nowMinutes < endMinutes;
-  }
-  // Overnight shift (crosses midnight), e.g. 22-06.
-  return nowMinutes >= startMinutes || nowMinutes < endMinutes;
+  if (startMinutes <= endMinutes) return nowMinutes >= startMinutes && nowMinutes < endMinutes;
+  return nowMinutes >= startMinutes || nowMinutes < endMinutes; // overnight
 }
 
-// Fetches and parses the sheet, returning the agents on shift right now.
 async function fetchOnShiftAgents(now = new Date()) {
   const response = await fetch(SHEET_CSV_URL, { cache: "no-store" });
   if (!response.ok) throw new Error(`Failed to load schedule: ${response.status}`);
@@ -375,10 +492,9 @@ async function fetchOnShiftAgents(now = new Date()) {
   const rows = parseCsv(await response.text());
   if (rows.length < 4) return [];
 
+  const nowMinutes = kyivMinutesFromDate(now);
   const todayCol = findTodayColumn(rows[1] || [], rows[2] || [], now);
-  if (todayCol === -1) {
-    throw new Error("Could not find today's date column in the schedule sheet.");
-  }
+  if (todayCol === -1) throw new Error("Could not find today's date column in the schedule sheet.");
 
   const agentsHeaderIdx = findAgentsHeaderRow(rows);
   const agentRows = agentsHeaderIdx === -1 ? rows.slice(3) : rows.slice(agentsHeaderIdx + 1);
@@ -389,7 +505,7 @@ async function fetchOnShiftAgents(now = new Date()) {
     if (!name) continue;
     if (name.trim().toLowerCase() === "management") break;
     const shift = parseShiftCode(row[todayCol]);
-    if (shift && isWithinShift(shift, now)) {
+    if (shift && isWithinShift(shift, nowMinutes)) {
       onShift.push({ name, shift });
     }
   }
@@ -401,31 +517,60 @@ function maxConcurrentBreaks(onShiftCount) {
   return onShiftCount >= TWO_BREAK_THRESHOLD ? 2 : 1;
 }
 
+// ---- Kyiv time helpers (board logic is always anchored to Kyiv, regardless
+// of the viewer's own timezone) ----
+function kyivPartsFromDate(date) {
+  const str = date.toLocaleString("en-GB", {
+    timeZone: "Europe/Kyiv",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+  const [h, m, s] = str.split(":").map(Number);
+  return { h, m, s };
+}
+function kyivMinutesFromDate(date) {
+  const { h, m } = kyivPartsFromDate(date);
+  return h * 60 + m;
+}
+function kyivClockString(date) {
+  const { h, m } = kyivPartsFromDate(date);
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
 // ---- App ----
 firebase.initializeApp(FIREBASE_CONFIG);
 const db = firebase.database();
 
 const boardEl = document.getElementById("board");
 const statusEl = document.getElementById("status");
-const capacityEl = document.getElementById("capacity");
 const kyivClockEl = document.getElementById("kyiv-clock");
-
-const MAX_BREAK_MINUTES_PER_DAY = 60;
-const SLOT_STEP_MINUTES = 15;
+const syncPillEl = document.getElementById("sync-pill");
+const syncLabelEl = document.getElementById("sync-label");
 
 let onShiftAgents = [];
-let breakState = {}; // { [agentName]: { [slotId]: { start: "HH:MM", end: "HH:MM" } } }
-let openBookingFor = null; // agent name currently showing the add-break form
+let breakState = {}; // { [agentName]: { [slotId]: { start: "HH:MM", end: "HH:MM", started: bool } } }
+let pendingSelection = null; // { agentName, startMin }
+const GRID_STEP_MINUTES = 15;
 
 function todayKey(now = new Date()) {
-  return now.toISOString().slice(0, 10); // YYYY-MM-DD
+  const { h } = kyivPartsFromDate(now);
+  const base = new Date(now.getTime());
+  return base.toLocaleDateString("en-CA", { timeZone: "Europe/Kyiv" }); // YYYY-MM-DD
 }
 
 function breaksRef() {
   return db.ref(`breaks/${todayKey()}`);
 }
 
+function setSync(state, label) {
+  syncPillEl.className = `pill pill-sync ${state}`;
+  syncLabelEl.textContent = label;
+}
+
 function timeToMinutes(value) {
+  if (!value) return null;
   const match = /^(\d{1,2}):(\d{2})$/.exec(value.trim());
   if (!match) return null;
   const h = parseInt(match[1], 10);
@@ -447,61 +592,106 @@ function agentSlots(agentName) {
 function agentBookedMinutes(agentName, excludeId = null) {
   return agentSlots(agentName)
     .filter((slot) => slot.id !== excludeId)
+    .filter((slot) => slot.start && slot.end)
     .reduce((sum, slot) => sum + (timeToMinutes(slot.end) - timeToMinutes(slot.start)), 0);
 }
 
-function isOnBreakNow(agentName, now = new Date()) {
-  const nowMinutes = now.getHours() * 60 + now.getMinutes();
-  return agentSlots(agentName).some(
-    (slot) => nowMinutes >= timeToMinutes(slot.start) && nowMinutes < timeToMinutes(slot.end)
-  );
+function slotStatus(slot, nowMinutes) {
+  if (!slot.start || !slot.end) return "idle";
+  const start = timeToMinutes(slot.start);
+  const end = timeToMinutes(slot.end);
+  if (nowMinutes >= start && nowMinutes < end) return slot.started ? "break" : "upcoming";
+  if (nowMinutes >= end) return "done";
+  return "upcoming";
 }
 
-function activeBreakCount(now = new Date()) {
-  return onShiftAgents.filter((agent) => isOnBreakNow(agent.name, now)).length;
+function isOnBreakNow(agentName, nowMinutes) {
+  return agentSlots(agentName).some((slot) => slotStatus(slot, nowMinutes) === "break");
 }
 
-// Counts agents (other than excludeAgent) who have a booked slot overlapping
-// [startMin, endMin).
-function overlappingAgentCount(startMin, endMin, excludeAgent) {
-  const overlapping = new Set();
+function activeBreakCount(nowMinutes) {
+  return onShiftAgents.filter((agent) => isOnBreakNow(agent.name, nowMinutes)).length;
+}
+
+// Overlap check against every other agent's booked slots.
+function overlapMinutesAgainstOthers(startMin, endMin, excludeAgent, excludeSlotId) {
+  let maxOverlap = 0;
+  let overlappingAgents = 0;
   for (const agent of onShiftAgents) {
     if (agent.name === excludeAgent) continue;
+    let agentOverlaps = false;
     for (const slot of agentSlots(agent.name)) {
+      if (!slot.start || !slot.end) continue;
       const slotStart = timeToMinutes(slot.start);
       const slotEnd = timeToMinutes(slot.end);
-      if (startMin < slotEnd && endMin > slotStart) {
-        overlapping.add(agent.name);
-        break;
+      const overlap = Math.min(endMin, slotEnd) - Math.max(startMin, slotStart);
+      if (overlap > 0) {
+        agentOverlaps = true;
+        maxOverlap = Math.max(maxOverlap, overlap);
       }
     }
+    if (agentOverlaps) overlappingAgents++;
   }
-  return overlapping.size;
+  return { overlappingAgents, maxOverlap };
 }
 
-function updateKyivClock() {
-  const now = new Date();
-  kyivClockEl.textContent = `Kyiv time: ${now.toLocaleTimeString("en-GB", {
-    timeZone: "Europe/Kyiv",
-    hour: "2-digit",
-    minute: "2-digit",
-  })}`;
+// How many other agents have a booked slot covering this single minute.
+function overlappingAgentsAtMinute(minute, excludeAgent) {
+  let count = 0;
+  for (const agent of onShiftAgents) {
+    if (agent.name === excludeAgent) continue;
+    const covered = agentSlots(agent.name).some((slot) => {
+      if (!slot.start || !slot.end) return false;
+      const start = timeToMinutes(slot.start);
+      const end = timeToMinutes(slot.end);
+      return minute >= start && minute < end;
+    });
+    if (covered) count++;
+  }
+  return count;
+}
+
+function shiftEndBlackoutStart(shift) {
+  return shift.endMinutes - SHIFT_END_BLACKOUT_MINUTES;
+}
+
+function minuteInBlackout(shift, minute) {
+  const blackoutStart = ((shiftEndBlackoutStart(shift) % 1440) + 1440) % 1440;
+  const shiftEnd = shift.endMinutes % 1440;
+  if (blackoutStart <= shiftEnd) return minute >= blackoutStart && minute < shiftEnd;
+  return minute >= blackoutStart || minute < shiftEnd; // overnight wrap
+}
+
+function violatesShiftEndBlackout(shift, startMin, endMin) {
+  const blackoutStart = ((shiftEndBlackoutStart(shift) % 1440) + 1440) % 1440;
+  const shiftEnd = shift.endMinutes;
+  // Normalize against overnight shifts by checking if either boundary falls
+  // within [blackoutStart, shiftEnd) on a same-day basis (shift codes already
+  // describe the agent's own day, so this is a simple range check).
+  return startMin >= blackoutStart && startMin < shiftEnd || endMin > blackoutStart && endMin <= shiftEnd;
 }
 
 function initials(name) {
-  return name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0].toUpperCase())
-    .join("");
+  return name.trim().split(/\s+/).slice(0, 2).map((p) => p[0].toUpperCase()).join("");
+}
+
+function shiftRangeLabel(shift) {
+  return `${minutesToTime(shift.startMinutes)}–${minutesToTime(shift.endMinutes)}`;
 }
 
 function render() {
   const now = new Date();
-  capacityEl.textContent = onShiftAgents.length
-    ? `${onShiftAgents.length} on shift · up to ${maxConcurrentBreaks(onShiftAgents.length)} on break at once · ${activeBreakCount(now)} on break now`
-    : "No agents currently on shift.";
+  const nowMinutes = kyivMinutesFromDate(now);
+  const maxConcurrent = maxConcurrentBreaks(onShiftAgents.length);
+  const onBreakCount = activeBreakCount(nowMinutes);
+  const doneCount = onShiftAgents.filter((a) =>
+    agentSlots(a.name).some((s) => slotStatus(s, nowMinutes) === "done")
+  ).length;
+
+  document.getElementById("stat-shift").textContent = onShiftAgents.length;
+  document.getElementById("stat-break").textContent = onBreakCount;
+  document.getElementById("stat-done").textContent = doneCount;
+  document.getElementById("stat-max").textContent = maxConcurrent;
 
   boardEl.innerHTML = "";
 
@@ -512,135 +702,265 @@ function render() {
 
     if (!agent) {
       row.classList.add("empty");
-      row.innerHTML = `<span class="name">—</span>`;
+      row.textContent = "—";
       boardEl.appendChild(row);
       continue;
     }
 
-    const onBreak = isOnBreakNow(agent.name, now);
-    row.classList.add(onBreak ? "on-break" : "available");
+    const slots = agentSlots(agent.name).sort((a, b) => (timeToMinutes(a.start) || 0) - (timeToMinutes(b.start) || 0));
+    while (slots.length < MAX_SLOTS_PER_AGENT) slots.push({ id: null, start: "", end: "", started: false });
 
-    const avatarEl = document.createElement("div");
-    avatarEl.className = "avatar";
-    avatarEl.textContent = initials(agent.name);
+    const onBreak = isOnBreakNow(agent.name, nowMinutes);
+    const usedMins = agentBookedMinutes(agent.name);
+    const allDone = usedMins >= MAX_BREAK_MINUTES_PER_DAY && !onBreak;
+    row.classList.add(onBreak ? "on-break" : allDone ? "done" : "available");
 
+    const head = document.createElement("div");
+    head.className = "row-head";
+
+    const avatar = document.createElement("div");
+    avatar.className = "avatar";
+    avatar.textContent = initials(agent.name);
+
+    const nameBlock = document.createElement("div");
+    nameBlock.className = "name-block";
     const nameEl = document.createElement("span");
     nameEl.className = "name";
     nameEl.textContent = agent.name;
+    const rangeEl = document.createElement("span");
+    rangeEl.className = "shift-range mono";
+    rangeEl.textContent = shiftRangeLabel(agent.shift);
+    nameBlock.append(nameEl, rangeEl);
 
-    const info = document.createElement("div");
-    info.className = "info";
-    info.appendChild(nameEl);
+    const usage = document.createElement("div");
+    usage.className = "usage";
+    const barBg = document.createElement("div");
+    barBg.className = "usage-bar";
+    const barFill = document.createElement("div");
+    barFill.className = `usage-fill ${usedMins >= MAX_BREAK_MINUTES_PER_DAY ? "full" : ""}`;
+    barFill.style.width = `${Math.min(100, (usedMins / MAX_BREAK_MINUTES_PER_DAY) * 100)}%`;
+    barBg.appendChild(barFill);
+    const usageLabel = document.createElement("span");
+    usageLabel.textContent = `${usedMins}/${MAX_BREAK_MINUTES_PER_DAY}m`;
+    usage.append(barBg, usageLabel);
 
-    const statusBadge = document.createElement("span");
-    statusBadge.className = "badge";
-    statusBadge.textContent = onBreak ? "On break now" : "Available";
-    info.appendChild(statusBadge);
+    const statusPill = document.createElement("span");
+    statusPill.className = `status-pill ${onBreak ? "break" : allDone ? "done" : "idle"}`;
+    statusPill.textContent = onBreak ? "On break" : allDone ? "Done" : "Available";
 
-    const slots = agentSlots(agent.name).sort(
-      (a, b) => timeToMinutes(a.start) - timeToMinutes(b.start)
-    );
-    const slotList = document.createElement("div");
-    slotList.className = "slot-list";
-    for (const slot of slots) {
-      const chip = document.createElement("span");
-      chip.className = "slot-chip";
-      chip.textContent = `${slot.start}–${slot.end}`;
-      const remove = document.createElement("button");
-      remove.className = "slot-remove";
-      remove.textContent = "×";
-      remove.addEventListener("click", () => removeBreak(agent.name, slot.id));
-      chip.appendChild(remove);
-      slotList.appendChild(chip);
-    }
-    info.appendChild(slotList);
+    head.append(avatar, nameBlock, usage, statusPill);
+    row.appendChild(head);
 
-    const addButton = document.createElement("button");
-    addButton.className = "add-break";
-    const slotsUsed = slots.length;
-    addButton.textContent =
-      slotsUsed >= MAX_SLOTS_PER_AGENT ? "All slots booked" : `Add break (${slotsUsed}/${MAX_SLOTS_PER_AGENT})`;
-    addButton.disabled = slotsUsed >= MAX_SLOTS_PER_AGENT;
-    addButton.addEventListener("click", () => {
-      openBookingFor = openBookingFor === agent.name ? null : agent.name;
-      render();
+    row.appendChild(buildGrid(agent, nowMinutes));
+
+    const slotsEl = document.createElement("div");
+    slotsEl.className = "slots";
+
+    slots.forEach((slot, slotIndex) => {
+      const status = slot.id ? slotStatus(slot, nowMinutes) : "idle";
+      const slotEl = document.createElement("div");
+      slotEl.className = "slot";
+
+      const label = document.createElement("span");
+      label.className = "slot-num";
+      label.textContent = `Break ${slotIndex + 1}`;
+
+      const timeDisplay = document.createElement("span");
+      const hasTime = slot.start && slot.end;
+      timeDisplay.className = `slot-time-display ${hasTime ? "" : "unset"}`;
+      timeDisplay.textContent = hasTime
+        ? `${slot.start} → ${slot.end}  (${timeToMinutes(slot.end) - timeToMinutes(slot.start)}m)`
+        : "Pick a time on the grid above";
+
+      const errorEl = document.createElement("span");
+      errorEl.className = "slot-error";
+
+      slotEl.append(label, timeDisplay);
+
+      if (slot.start && slot.end) {
+        if (status === "break") {
+          const stopBtn = document.createElement("button");
+          stopBtn.className = "btn-stop";
+          stopBtn.textContent = "■ Stop";
+          stopBtn.addEventListener("click", () => stopBreak(agent.name, slot.id).then(render));
+          slotEl.appendChild(stopBtn);
+        } else if (status === "upcoming") {
+          const canStart = onBreakCount < maxConcurrent || onBreak;
+          const startBtn = document.createElement("button");
+          startBtn.className = "btn-start";
+          startBtn.textContent = "▶ Start";
+          startBtn.disabled = !canStart;
+          startBtn.title = canStart ? "" : "Max concurrent breaks reached";
+          startBtn.addEventListener("click", () => startBreak(agent.name, slot.id).then(render));
+          slotEl.appendChild(startBtn);
+        } else if (status === "done") {
+          const doneTag = document.createElement("span");
+          doneTag.className = "status-pill done";
+          doneTag.textContent = "Done";
+          slotEl.appendChild(doneTag);
+        }
+      }
+
+      const clearBtn = document.createElement("button");
+      clearBtn.className = "btn-clear";
+      clearBtn.textContent = "Clear";
+      clearBtn.disabled = !slot.start && !slot.end;
+      clearBtn.addEventListener("click", () => clearSlot(agent.name, slot.id).then(render));
+      slotEl.appendChild(clearBtn);
+
+      slotEl.appendChild(errorEl);
+      slotsEl.appendChild(slotEl);
     });
 
-    row.append(avatarEl, info, addButton);
+    row.appendChild(slotsEl);
     boardEl.appendChild(row);
-
-    if (openBookingFor === agent.name) {
-      row.appendChild(buildBookingForm(agent.name));
-    }
   }
 }
 
-function buildBookingForm(agentName) {
-  const form = document.createElement("div");
-  form.className = "booking-form";
+function buildGrid(agent, nowMinutes) {
+  const wrap = document.createElement("div");
+  wrap.className = "grid-wrap";
 
-  const startInput = document.createElement("input");
-  startInput.type = "time";
-  startInput.step = SLOT_STEP_MINUTES * 60;
-  startInput.value = "";
+  const hint = document.createElement("div");
+  hint.className = "grid-hint";
+  const isPending = pendingSelection && pendingSelection.agentName === agent.name;
+  hint.textContent = isPending
+    ? `Pick the end of this break (started at ${minutesToTime(pendingSelection.startMin)}) — click again to cancel.`
+    : "Click a start cell, then an end cell to book a break (splits allowed, up to 60 min total).";
+  wrap.appendChild(hint);
 
-  const endInput = document.createElement("input");
-  endInput.type = "time";
-  endInput.step = SLOT_STEP_MINUTES * 60;
-  endInput.value = "";
+  const gridRow = document.createElement("div");
+  gridRow.className = "grid-row";
 
-  const confirmButton = document.createElement("button");
-  confirmButton.textContent = "Book";
-  confirmButton.type = "button";
+  const { startMinutes, endMinutes } = agent.shift;
+  const maxConcurrent = maxConcurrentBreaks(onShiftAgents.length);
+  const usedMins = agentBookedMinutes(agent.name);
+  const slotsCount = agentSlots(agent.name).length;
 
-  const errorEl = document.createElement("span");
-  errorEl.className = "booking-error";
-
-  confirmButton.addEventListener("click", async () => {
-    const error = await bookBreak(agentName, startInput.value, endInput.value);
-    if (error) {
-      errorEl.textContent = error;
-    } else {
-      openBookingFor = null;
-      render();
+  let m = startMinutes;
+  let guard = 0;
+  while (((m - startMinutes + 1440) % 1440) < ((endMinutes - startMinutes + 1440) % 1440 || 1440) && guard < 200) {
+    const minute = m % 1440;
+    const cell = document.createElement("div");
+    cell.className = "cell";
+    if (minute % 60 === 0) {
+      cell.classList.add("hour-mark");
+      cell.textContent = minutesToTime(minute);
     }
-  });
 
-  form.append(startInput, endInput, confirmButton, errorEl);
-  return form;
+    const ownSlot = agentSlots(agent.name).find((slot) => {
+      if (!slot.start || !slot.end) return false;
+      const s = timeToMinutes(slot.start);
+      const e = timeToMinutes(slot.end);
+      return minute >= s && minute < e;
+    });
+
+    if (ownSlot) {
+      const status = slotStatus(ownSlot, nowMinutes);
+      cell.classList.add(status === "break" ? "mine-break" : status === "done" ? "mine-done" : "mine-upcoming");
+    } else if (minuteInBlackout(agent.shift, minute)) {
+      cell.classList.add("blackout");
+    } else if (overlappingAgentsAtMinute(minute, agent.name) >= maxConcurrent) {
+      cell.classList.add("full");
+    } else if (isPending && minute === pendingSelection.startMin) {
+      cell.classList.add("pending");
+    } else if (slotsCount >= MAX_SLOTS_PER_AGENT && !isPending) {
+      cell.classList.add("full");
+    } else if (usedMins >= MAX_BREAK_MINUTES_PER_DAY && !isPending) {
+      cell.classList.add("full");
+    } else {
+      cell.classList.add("open");
+      cell.addEventListener("click", () => handleGridClick(agent, minute));
+    }
+
+    if (isPending && cell.classList.contains("blackout") === false && cell.classList.contains("full") === false) {
+      cell.addEventListener("click", () => handleGridClick(agent, minute));
+    }
+
+    gridRow.appendChild(cell);
+    m += GRID_STEP_MINUTES;
+    guard++;
+  }
+
+  wrap.appendChild(gridRow);
+  return wrap;
 }
 
-async function bookBreak(agentName, startValue, endValue) {
+async function handleGridClick(agent, minute) {
+  if (!pendingSelection || pendingSelection.agentName !== agent.name) {
+    pendingSelection = { agentName: agent.name, startMin: minute };
+    render();
+    return;
+  }
+
+  if (minute === pendingSelection.startMin) {
+    pendingSelection = null;
+    render();
+    return;
+  }
+
+  const startMin = Math.min(pendingSelection.startMin, minute);
+  const endMin = Math.max(pendingSelection.startMin, minute) + GRID_STEP_MINUTES;
+  pendingSelection = null;
+
+  const error = await saveSlot(agent, null, null, minutesToTime(startMin), minutesToTime(endMin));
+  if (error) {
+    statusEl.textContent = error;
+    setTimeout(() => { if (statusEl.textContent === error) statusEl.textContent = ""; }, 4000);
+  }
+  render();
+}
+
+async function saveSlot(agent, slotId, slotIndex, startValue, endValue) {
   const startMin = timeToMinutes(startValue);
   const endMin = timeToMinutes(endValue);
+  if (startMin === null || endMin === null) return null; // incomplete, not an error yet
+  if (endMin <= startMin) return "End must be after start.";
 
-  if (startMin === null || endMin === null) return "Pick a start and end time.";
-  if (agentSlots(agentName).length >= MAX_SLOTS_PER_AGENT) {
+  if (!slotId && agentSlots(agent.name).length >= MAX_SLOTS_PER_AGENT) {
     return `Max ${MAX_SLOTS_PER_AGENT} break slots per day.`;
   }
-  if (startMin % SLOT_STEP_MINUTES !== 0 || endMin % SLOT_STEP_MINUTES !== 0) {
-    return "Times must be in 15-minute steps.";
-  }
-  if (endMin <= startMin) return "End time must be after start time.";
 
   const duration = endMin - startMin;
-  if (agentBookedMinutes(agentName) + duration > MAX_BREAK_MINUTES_PER_DAY) {
+  const otherMinutes = agentBookedMinutes(agent.name, slotId);
+  if (otherMinutes + duration > MAX_BREAK_MINUTES_PER_DAY) {
     return `Max ${MAX_BREAK_MINUTES_PER_DAY} minutes of break per day.`;
   }
 
-  const maxConcurrent = maxConcurrentBreaks(onShiftAgents.length);
-  if (overlappingAgentCount(startMin, endMin, agentName) >= maxConcurrent) {
-    return "That time is already fully booked by other agents.";
+  if (violatesShiftEndBlackout(agent.shift, startMin, endMin)) {
+    return "No breaks in the last 30 minutes of the shift.";
   }
 
-  await breaksRef().child(agentName).push({
-    start: minutesToTime(startMin),
-    end: minutesToTime(endMin),
-  });
+  const maxConcurrent = maxConcurrentBreaks(onShiftAgents.length);
+  const { overlappingAgents, maxOverlap } = overlapMinutesAgainstOthers(startMin, endMin, agent.name, slotId);
+  if (overlappingAgents >= maxConcurrent) {
+    return "That time is already fully booked by other agents.";
+  }
+  if (overlappingAgents > 0 && maxOverlap > MAX_OVERLAP_MINUTES) {
+    return "Overlap with another agent's break exceeds 30 minutes.";
+  }
+
+  const ref = breaksRef().child(agent.name);
+  if (slotId) {
+    await ref.child(slotId).update({ start: minutesToTime(startMin), end: minutesToTime(endMin) });
+  } else {
+    await ref.push({ start: minutesToTime(startMin), end: minutesToTime(endMin), started: false });
+  }
   return null;
 }
 
-async function removeBreak(agentName, slotId) {
+async function startBreak(agentName, slotId) {
+  if (!slotId) return;
+  await breaksRef().child(agentName).child(slotId).update({ started: true });
+}
+
+async function stopBreak(agentName, slotId) {
+  if (!slotId) return;
+  await breaksRef().child(agentName).child(slotId).update({ started: false });
+}
+
+async function clearSlot(agentName, slotId) {
+  if (!slotId) return;
   await breaksRef().child(agentName).child(slotId).remove();
 }
 
@@ -654,14 +974,24 @@ async function refreshSchedule() {
   }
 }
 
-breaksRef().on("value", (snapshot) => {
-  breakState = snapshot.val() || {};
-  render();
-});
+function updateKyivClock() {
+  kyivClockEl.textContent = kyivClockString(new Date());
+}
+
+setSync("syncing", "Connecting…");
+breaksRef().on(
+  "value",
+  (snapshot) => {
+    breakState = snapshot.val() || {};
+    setSync("ok", "Live");
+    render();
+  },
+  () => setSync("err", "Offline")
+);
 
 updateKyivClock();
 setInterval(updateKyivClock, 1000);
-setInterval(render, 30 * 1000); // keep "on break now" status fresh as time passes
+setInterval(render, 15 * 1000);
 
 refreshSchedule();
 setInterval(refreshSchedule, SCHEDULE_REFRESH_MS);
