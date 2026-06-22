@@ -382,7 +382,7 @@ async function fetchOnShiftAgents(now = new Date()) {
 
   const onShift = [];
   for (const row of agentRows) {
-    const name = row[0];
+    const name = row[1];
     if (!name) continue;
     const shift = parseShiftCode(row[todayCol]);
     if (shift && isWithinShift(shift, now)) {
