@@ -236,8 +236,8 @@ header {
   flex-grow: 1;
 }
 .gs-cell.past { opacity: 0.35; }
-.gs-cell.half { background: rgba(229, 164, 77, 0.28); border-color: rgba(229, 164, 77, 0.4); color: var(--text); }
-.gs-cell.full { background: var(--on-break); border-color: var(--on-break); color: #241704; }
+.gs-cell.half { background: rgba(229, 164, 77, 0.4); border-color: rgba(229, 164, 77, 0.55); color: var(--text); }
+.gs-cell.full { background: var(--danger); border-color: var(--danger); color: #2a0a09; }
 .gs-cell.clickable { cursor: pointer; border-color: rgba(91, 141, 239, 0.45); }
 .gs-cell.clickable:hover { background: rgba(91, 141, 239, 0.2); color: var(--text); }
 .gs-cell.pending { background: var(--accent); border-color: var(--accent); color: #fff; }
@@ -987,10 +987,9 @@ function renderGlobalSlots(nowMinutes, maxConcurrent) {
       if (covered >= maxConcurrent) {
         isFull = true;
         cell.classList.add("full");
-        cell.title = "Fully booked";
+        cell.title = `${covered}/${maxConcurrent} slots filled — fully booked`;
       } else {
         cell.classList.add("half");
-        cell.textContent = `${covered}/${maxConcurrent}`;
         cell.title = `${covered}/${maxConcurrent} slots filled`;
       }
     }
@@ -1031,7 +1030,7 @@ async function handleGlobalSlotClick(agent, minute) {
   }
 
   const startMin = Math.min(pendingGlobalSelection.startMin, minute);
-  const endMin = Math.max(pendingGlobalSelection.startMin, minute) + SLOT_STEP_MINUTES;
+  const endMin = Math.max(pendingGlobalSelection.startMin, minute);
   pendingGlobalSelection = null;
 
   const error = await saveSlot(agent, null, null, minutesToTime(startMin), minutesToTime(endMin));
