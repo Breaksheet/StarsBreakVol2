@@ -424,6 +424,40 @@ footer.note {
   color: var(--muted);
   margin-top: 22px;
 }
+
+.slot-countdown {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--on-break);
+  background: rgba(229, 164, 77, 0.14);
+  border-radius: 6px;
+  padding: 3px 8px;
+}
+.slot-countdown.urgent { color: var(--danger); background: rgba(229, 97, 95, 0.16); }
+
+@media (max-width: 900px) {
+  header {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: 10px;
+    padding: 14px 16px;
+  }
+  .header-right { justify-content: center; }
+  .board-columns { grid-template-columns: 1fr; }
+  .stats-row { grid-template-columns: repeat(2, 1fr); }
+  .pill-clock-big { font-size: 26px; padding: 8px 18px; }
+}
+
+@media (max-width: 520px) {
+  .main { padding: 16px 10px 50px; }
+  .rules-bar { flex-direction: column; gap: 8px; }
+  .gs-cell { min-width: 46px; height: 32px; font-size: 11.5px; }
+  .row-head { gap: 8px; }
+  .slot { flex-direction: column; align-items: stretch; }
+  .slot-time-display { min-width: 0; }
+  input[type="time"] { width: 100%; }
+}
 </style>
 </head>
 <body>
@@ -871,6 +905,14 @@ function render() {
         timeDisplay.className = "slot-time-display";
         timeDisplay.textContent = `${slot.start} → ${slot.end}  (${timeToMinutes(slot.end) - timeToMinutes(slot.start)}m)`;
         slotEl.append(label, timeDisplay);
+
+        if (status === "break") {
+          const minutesLeft = timeToMinutes(slot.end) - nowMinutes;
+          const countdown = document.createElement("span");
+          countdown.className = `slot-countdown ${minutesLeft <= 5 ? "urgent" : ""}`;
+          countdown.textContent = minutesLeft > 0 ? `${minutesLeft}m left` : "Time's up";
+          slotEl.appendChild(countdown);
+        }
       } else {
         const startInput = document.createElement("input");
         startInput.type = "time";
@@ -915,7 +957,7 @@ function render() {
           startBtn.title = canStart ? "" : "Max concurrent breaks reached";
           startBtn.addEventListener("click", () => {
             startBtn.disabled = true;
-            startBreak(agent.name, slot.id)
+            startBreak(agent.name, slot.id, slot, nowMinutes)
               .then(render)
               .catch((err) => { errorEl.textContent = err.message || "Could not save - try again."; startBtn.disabled = false; });
           });
@@ -970,6 +1012,11 @@ function renderGlobalSlots(nowMinutes, maxConcurrent) {
   const slotsCount = selectedAgent ? agentSlots(selectedAgent.name).length : 0;
   const canBookMore = selectedAgent && usedMins < MAX_BREAK_MINUTES_PER_DAY && slotsCount < MAX_SLOTS_PER_AGENT;
 
+  // Compare against the continuous (non-wrapped) timeline so overnight cells
+  // past midnight aren't mistaken for "earlier today" and marked past.
+  let nowAbsolute = nowMinutes;
+  if (nowAbsolute < range.startMinutes) nowAbsolute += 1440;
+
   let m = range.startMinutes;
   let guard = 0;
   while (m < range.endMinutes && guard < 200) {
@@ -978,7 +1025,7 @@ function renderGlobalSlots(nowMinutes, maxConcurrent) {
     cell.className = "gs-cell";
     cell.textContent = minutesToTime(minute);
 
-    const isPast = minute < nowMinutes;
+    const isPast = m < nowAbsolute;
     if (isPast) cell.classList.add("past");
 
     const covered = overlappingAgentsAtMinuteDisplay(minute);
@@ -1076,9 +1123,19 @@ async function saveSlot(agent, slotId, slotIndex, startValue, endValue) {
   return null;
 }
 
-async function startBreak(agentName, slotId) {
+// If Start is pressed after the scheduled start time, shift the whole break
+// window forward so the agent still gets the full duration they booked.
+async function startBreak(agentName, slotId, slot, nowMinutes) {
   if (!slotId) return;
-  await breaksRef().child(agentName).child(slotId).update({ started: true, completed: false });
+  const update = { started: true, completed: false };
+  const scheduledStart = timeToMinutes(slot.start);
+  const scheduledEnd = timeToMinutes(slot.end);
+  if (scheduledStart !== null && scheduledEnd !== null && nowMinutes > scheduledStart) {
+    const duration = scheduledEnd - scheduledStart;
+    update.start = minutesToTime(nowMinutes);
+    update.end = minutesToTime(nowMinutes + duration);
+  }
+  await breaksRef().child(agentName).child(slotId).update(update);
 }
 
 // Stopping marks the break as completed (done), rather than reverting it to
