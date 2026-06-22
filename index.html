@@ -407,6 +407,8 @@ button:disabled { opacity: 0.3; cursor: not-allowed; }
   color: var(--text);
 }
 .slot-time-display.unset { color: var(--muted); }
+.slot-time-display.pending { color: var(--accent); }
+.slot-pending-hint { font-size: 12.5px; color: var(--muted); font-style: italic; }
 
 .slot-time-input {
   font-family: 'JetBrains Mono', monospace;
@@ -832,6 +834,12 @@ function render() {
     const slots = agentSlots(agent.name).sort((a, b) => (timeToMinutes(a.start) || 0) - (timeToMinutes(b.start) || 0));
     while (slots.length < MAX_SLOTS_PER_AGENT) slots.push({ id: null, start: "", end: "", started: false });
 
+    const hasPendingStart = selectedAgentName === agent.name && pendingGlobalSelection && pendingGlobalSelection.agentName === agent.name;
+    let pendingSlotIndex = -1;
+    if (hasPendingStart) {
+      pendingSlotIndex = slots.findIndex((s) => !s.start && !s.end);
+    }
+
     const onBreak = isOnBreakNow(agent.name, nowMinutes);
     const usedMins = agentBookedMinutes(agent.name);
     const allDone = usedMins >= MAX_BREAK_MINUTES_PER_DAY && !onBreak;
@@ -899,8 +907,17 @@ function render() {
       errorEl.className = "slot-error";
 
       const hasTime = slot.start && slot.end;
+      const isPendingSlot = slotIndex === pendingSlotIndex;
 
-      if (hasTime) {
+      if (isPendingSlot) {
+        const timeDisplay = document.createElement("span");
+        timeDisplay.className = "slot-time-display pending";
+        timeDisplay.textContent = `${minutesToTime(pendingGlobalSelection.startMin)} → --:--`;
+        const hint = document.createElement("span");
+        hint.className = "slot-pending-hint";
+        hint.textContent = "Pick end time above";
+        slotEl.append(label, timeDisplay, hint);
+      } else if (hasTime) {
         const timeDisplay = document.createElement("span");
         timeDisplay.className = "slot-time-display";
         timeDisplay.textContent = `${slot.start} → ${slot.end}  (${timeToMinutes(slot.end) - timeToMinutes(slot.start)}m)`;
@@ -977,9 +994,14 @@ function render() {
 
       const clearBtn = document.createElement("button");
       clearBtn.className = "btn-clear";
-      clearBtn.textContent = "Clear";
-      clearBtn.disabled = !slot.start && !slot.end;
-      clearBtn.addEventListener("click", () => clearSlot(agent.name, slot.id).then(render));
+      if (isPendingSlot) {
+        clearBtn.textContent = "Cancel";
+        clearBtn.addEventListener("click", () => { pendingGlobalSelection = null; render(); });
+      } else {
+        clearBtn.textContent = "Clear";
+        clearBtn.disabled = !slot.start && !slot.end;
+        clearBtn.addEventListener("click", () => clearSlot(agent.name, slot.id).then(render));
+      }
       slotEl.appendChild(clearBtn);
 
       slotEl.appendChild(errorEl);
@@ -1047,7 +1069,7 @@ function renderGlobalSlots(nowMinutes, maxConcurrent) {
       if (!inBlackout) clickable = true;
     }
 
-    if (pendingGlobalSelection && minute === pendingGlobalSelection.startMin) {
+    if (pendingGlobalSelection && selectedAgent && pendingGlobalSelection.agentName === selectedAgent.name && minute === pendingGlobalSelection.startMin) {
       cell.classList.add("pending");
     }
 
@@ -1063,8 +1085,8 @@ function renderGlobalSlots(nowMinutes, maxConcurrent) {
 }
 
 async function handleGlobalSlotClick(agent, minute) {
-  if (!pendingGlobalSelection) {
-    pendingGlobalSelection = { startMin: minute };
+  if (!pendingGlobalSelection || pendingGlobalSelection.agentName !== agent.name) {
+    pendingGlobalSelection = { agentName: agent.name, startMin: minute };
     render();
     return;
   }
