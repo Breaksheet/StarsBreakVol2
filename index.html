@@ -552,7 +552,21 @@ const MAX_SLOTS_PER_AGENT = 3;
 const MAX_BREAK_MINUTES_PER_DAY = 60;
 const SHIFT_END_BLACKOUT_MINUTES = 30;
 const SLOT_STEP_MINUTES = 15;
-const EXCLUDED_NAMES = ["jawhara"];
+const EXCLUDED_NAMES = [
+  "jawhara",
+  "julia (cs head)",
+  "jack (bigbetty cs tl)",
+  "giorgi (tl cs igate",
+  "sara (stars cs tl)",
+  "cs ops matthew",
+  "cs ops mason",
+  "eva (qc)",
+  "zoe (qc)",
+  "lucas (qc)",
+  "amanda (cs l&d specialist)",
+  "adeline (cs l&d specialist)",
+  "yuliia (prm manager)",
+];
 
 // ---- Schedule parsing ----
 const STATUS_OFF = "OFF";
@@ -649,7 +663,8 @@ async function fetchOnShiftAgents(now = new Date()) {
     const name = row[1];
     if (!name) continue;
     if (name.trim().toLowerCase() === "management") break;
-    if (EXCLUDED_NAMES.includes(name.trim().toLowerCase())) continue;
+    const normalizedName = name.trim().toLowerCase();
+    if (EXCLUDED_NAMES.some((excluded) => normalizedName.includes(excluded))) continue;
 
     const todayShift = parseShiftCode(row[todayCol]);
     if (todayShift && isOnShiftToday(todayShift, nowMinutes)) {
