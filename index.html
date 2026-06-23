@@ -795,11 +795,6 @@ function slotStatus(slot, nowMinutes) {
   if (!slot.start || !slot.end) return "idle";
   if (slot.completed) return "done";
   if (slot.started) return "break";
-  const start = timeToMinutes(slot.start);
-  const end = timeToMinutes(slot.end);
-  const endAbs = slotEndAbs(start, end);
-  const nowAbs = nowMinutes >= start ? nowMinutes : nowMinutes + 1440;
-  if (nowAbs >= endAbs) return "missed";
   return "upcoming";
 }
 
@@ -1072,11 +1067,6 @@ function render() {
               .catch((err) => { errorEl.textContent = err.message || "Could not save - try again."; startBtn.disabled = false; });
           });
           slotEl.appendChild(startBtn);
-        } else if (status === "missed") {
-          const missedTag = document.createElement("span");
-          missedTag.className = "status-pill done";
-          missedTag.textContent = "Missed";
-          slotEl.appendChild(missedTag);
         } else if (status === "done") {
           const doneTag = document.createElement("span");
           doneTag.className = "status-pill done";
@@ -1172,7 +1162,15 @@ function renderGlobalSlots(nowMinutes, maxConcurrent) {
 
     let clickable = false;
     if (selectedAgent && canBookMore && !isPast && !isFull) {
-      const inBlackout = minuteInBlackout(selectedAgent.shift, minute);
+      const isPendingForThisAgent = pendingGlobalSelection && pendingGlobalSelection.agentName === selectedAgent.name;
+      const blackoutStart = ((shiftEndBlackoutStart(selectedAgent.shift) % 1440) + 1440) % 1440;
+      // When picking the end time (second click), a break is allowed to end
+      // exactly at the blackout boundary - e.g. a shift ending 23:00 can
+      // still take a break up to 22:30, even though 22:30 itself can't be
+      // used as a *start* time (that would leave 0 min before shift end).
+      const inBlackout = isPendingForThisAgent && minute === blackoutStart
+        ? false
+        : minuteInBlackout(selectedAgent.shift, minute);
       if (!inBlackout) clickable = true;
     }
 
