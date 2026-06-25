@@ -549,7 +549,6 @@ const MAX_AGENT_ROWS = 10;
 const TWO_BREAK_THRESHOLD = 6;
 const MAX_SLOTS_PER_AGENT = 3;
 const MAX_BREAK_MINUTES_PER_DAY = 60;
-const SHIFT_END_BLACKOUT_MINUTES = 30;
 const SLOT_STEP_MINUTES = 15;
 const EXCLUDED_NAMES = [
   "jawhara",
@@ -767,7 +766,7 @@ function slotEndAbs(startMin, endMin) {
 }
 
 // Wrap-aware "is this clock minute inside [start, end)" check, matching the
-// overnight-wrap pattern already used by isOnShiftToday/minuteInBlackout.
+// overnight-wrap pattern already used by isOnShiftToday.
 function minuteInSlotRange(minute, start, end, inclusiveEnd) {
   if (start <= end) return inclusiveEnd ? minute >= start && minute <= end : minute >= start && minute < end;
   return inclusiveEnd ? minute >= start || minute <= end : minute >= start || minute < end;
@@ -853,27 +852,6 @@ function overlappingAgentsAtMinuteDisplay(minute) {
     if (covered) count++;
   }
   return count;
-}
-
-function shiftEndBlackoutStart(shift) {
-  return shift.endMinutes - SHIFT_END_BLACKOUT_MINUTES;
-}
-
-function minuteInBlackout(shift, minute) {
-  const blackoutStart = ((shiftEndBlackoutStart(shift) % 1440) + 1440) % 1440;
-  const shiftEnd = shift.endMinutes % 1440;
-  if (blackoutStart <= shiftEnd) return minute >= blackoutStart && minute < shiftEnd;
-  return minute >= blackoutStart || minute < shiftEnd; // overnight wrap
-}
-
-function violatesShiftEndBlackout(shift, startMin, endMin) {
-  const blackoutStart = ((shiftEndBlackoutStart(shift) % 1440) + 1440) % 1440;
-  const shiftEnd = shift.endMinutes % 1440;
-  // Normalize against overnight shifts/breaks by checking if either boundary
-  // falls within [blackoutStart, shiftEnd) using the same wrap-aware range
-  // check used everywhere else for overnight spans.
-  return minuteInSlotRange(startMin, blackoutStart, shiftEnd, false) ||
-    minuteInSlotRange(endMin, blackoutStart, shiftEnd, true) && endMin !== blackoutStart;
 }
 
 function initials(name) {
@@ -1161,16 +1139,7 @@ function renderGlobalSlots(nowMinutes, maxConcurrent) {
 
     let clickable = false;
     if (selectedAgent && canBookMore && !isPast && !isFull) {
-      const isPendingForThisAgent = pendingGlobalSelection && pendingGlobalSelection.agentName === selectedAgent.name;
-      const blackoutStart = ((shiftEndBlackoutStart(selectedAgent.shift) % 1440) + 1440) % 1440;
-      // When picking the end time (second click), a break is allowed to end
-      // exactly at the blackout boundary - e.g. a shift ending 23:00 can
-      // still take a break up to 22:30, even though 22:30 itself can't be
-      // used as a *start* time (that would leave 0 min before shift end).
-      const inBlackout = isPendingForThisAgent && minute === blackoutStart
-        ? false
-        : minuteInBlackout(selectedAgent.shift, minute);
-      if (!inBlackout) clickable = true;
+      clickable = true;
     }
 
     if (pendingGlobalSelection && selectedAgent && pendingGlobalSelection.agentName === selectedAgent.name && abs === pendingGlobalSelection.startAbs) {
@@ -1230,10 +1199,6 @@ async function saveSlot(agent, slotId, slotIndex, startValue, endValue) {
   const otherMinutes = agentBookedMinutes(agent.name, slotId);
   if (otherMinutes + duration > MAX_BREAK_MINUTES_PER_DAY) {
     return `Max ${MAX_BREAK_MINUTES_PER_DAY} minutes of break per day.`;
-  }
-
-  if (violatesShiftEndBlackout(agent.shift, startMin, endMin)) {
-    return "No breaks in the last 30 minutes of the shift.";
   }
 
   const maxConcurrent = maxConcurrentBreaks(onShiftAgents.length);
