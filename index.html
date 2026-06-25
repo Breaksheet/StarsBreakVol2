@@ -376,7 +376,6 @@ header {
   flex-shrink: 0; box-shadow: 0 6px 16px rgba(79,141,255,0.3), inset 0 0 0 1px rgba(255,255,255,0.12);
 }
 .row.on-break .avatar { background: linear-gradient(140deg, var(--on-break), #c4641f); color: #1c0d02; box-shadow: 0 6px 16px rgba(255,138,61,0.35), inset 0 0 0 1px rgba(255,255,255,0.12); }
-.row.done .avatar { background: linear-gradient(140deg, #4a5572, #2f384f); color: #c7d0e6; }
 
 .name-block { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .name { font-weight: 700; font-size: 21px; letter-spacing: 0.2px; }
@@ -1086,8 +1085,9 @@ function render() {
     usage.append(barBg, usageLabel);
 
     const statusPill = document.createElement("span");
-    statusPill.className = `status-pill ${onBreak ? "break" : allDone ? "done" : "idle"}`;
-    statusPill.textContent = onBreak ? "On break" : allDone ? "Done" : "Available";
+    statusPill.className = `status-pill ${onBreak ? "break" : "idle"}`;
+    statusPill.textContent = onBreak ? "On break" : "Available";
+    statusPill.style.display = allDone ? "none" : "";
 
     head.append(avatar, nameBlock, usage, statusPill);
     row.appendChild(head);
@@ -1188,11 +1188,6 @@ function render() {
               .catch((err) => { errorEl.textContent = err.message || "Could not save - try again."; startBtn.disabled = false; });
           });
           slotEl.appendChild(startBtn);
-        } else if (status === "done") {
-          const doneTag = document.createElement("span");
-          doneTag.className = "status-pill done";
-          doneTag.textContent = "Done";
-          slotEl.appendChild(doneTag);
         }
       }
 
