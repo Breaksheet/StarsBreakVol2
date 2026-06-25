@@ -198,7 +198,7 @@ header {
 .wheel-modal-overlay.hidden { display: none; }
 .wheel-modal {
   position: relative;
-  width: min(960px, 100%); height: min(820px, 92vh);
+  width: min(1180px, 96vw); height: min(880px, 94vh);
   border-radius: 18px; overflow: hidden;
   border: 1px solid rgba(255,138,61,0.4);
   box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 40px rgba(255,138,61,0.18);
@@ -906,9 +906,71 @@ function shiftRangeLabel(shift) {
   return `${minutesToTime(shift.startMinutes)}–${minutesToTime(shift.endMinutes)}`;
 }
 
+function formatCountdown(secondsLeft) {
+  if (secondsLeft <= 0) return "Time's up";
+  const mins = Math.floor(secondsLeft / 60);
+  const secs = secondsLeft % 60;
+  return `${mins}:${String(secs).padStart(2, "0")} left`;
+}
+
+let audioCtx = null;
+function playBeep() {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = "sine";
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.25, audioCtx.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.4);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.4);
+  } catch (err) {
+    // audio not available, ignore
+  }
+}
+
+function notifyBreakEvent(agentName, message) {
+  playBeep();
+  if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+    new Notification("Break update", { body: `${agentName}: ${message}` });
+  }
+}
+
+if (typeof Notification !== "undefined" && Notification.permission === "default") {
+  Notification.requestPermission();
+}
+
+const notifiedSoon = new Set();
+const notifiedEnded = new Set();
+
+function tickCountdowns() {
+  document.querySelectorAll(".slot-countdown[data-end-ms]").forEach((el) => {
+    const endMs = Number(el.dataset.endMs);
+    const slotId = el.dataset.slotId;
+    const agentName = el.dataset.agentName;
+    const secondsLeft = Math.round((endMs - Date.now()) / 1000);
+    el.textContent = formatCountdown(secondsLeft);
+    el.classList.toggle("urgent", secondsLeft <= 60 && secondsLeft > 0);
+
+    if (secondsLeft <= 60 && secondsLeft > 0 && !notifiedSoon.has(slotId)) {
+      notifiedSoon.add(slotId);
+      notifyBreakEvent(agentName, "break ending in 1 minute");
+    }
+    if (secondsLeft <= 0 && !notifiedEnded.has(slotId)) {
+      notifiedEnded.add(slotId);
+      notifyBreakEvent(agentName, "break time is up");
+    }
+  });
+}
+
 function render() {
   const now = new Date();
   const nowMinutes = kyivMinutesFromDate(now);
+  const nowSeconds = kyivPartsFromDate(now).s;
   const maxConcurrent = maxConcurrentBreaks(onShiftAgents.length);
   const onBreakCount = activeBreakCount(nowMinutes);
   const doneCount = onShiftAgents.filter((a) =>
@@ -1034,9 +1096,14 @@ function render() {
         if (status === "break") {
           const nowAbs = nowMinutes >= slotStartMin ? nowMinutes : nowMinutes + 1440;
           const minutesLeft = slotEndAbs(slotStartMin, slotEndMin) - nowAbs;
+          const secondsLeft = minutesLeft * 60 - nowSeconds;
+          const endEpochMs = now.getTime() + secondsLeft * 1000;
           const countdown = document.createElement("span");
-          countdown.className = `slot-countdown ${minutesLeft <= 5 ? "urgent" : ""}`;
-          countdown.textContent = minutesLeft > 0 ? `${minutesLeft}m left` : "Time's up";
+          countdown.className = `slot-countdown ${secondsLeft <= 60 ? "urgent" : ""}`;
+          countdown.dataset.endMs = String(endEpochMs);
+          countdown.dataset.slotId = slot.id;
+          countdown.dataset.agentName = agent.name;
+          countdown.textContent = formatCountdown(secondsLeft);
           slotEl.appendChild(countdown);
         }
       } else {
@@ -1315,6 +1382,7 @@ breaksRef().on(
 updateKyivClock();
 setInterval(updateKyivClock, 1000);
 setInterval(render, 15 * 1000);
+setInterval(tickCountdowns, 1000);
 
 refreshSchedule();
 setInterval(refreshSchedule, SCHEDULE_REFRESH_MS);
