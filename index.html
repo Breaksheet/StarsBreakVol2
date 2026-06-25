@@ -1418,18 +1418,34 @@ async function clearSlot(agentName, slotId) {
   await breaksRef().child(agentName).child(slotId).remove();
 }
 
-// Breaks are kept forever per agent name - they are only wiped when a row's
-// shift signature changes, i.e. a new shift gets entered for that row (a new
-// agent arriving, or the same agent starting a brand-new shift the next day).
+// Breaks are kept indefinitely per agent name. A row is reset ONLY when a
+// genuinely different shift signature was already on record for it and a new
+// one is now scheduled. An absent/unknown stored signature is never treated as
+// a reason to wipe - that path only records the signature and leaves existing
+// break data untouched. This guarantees a slow/partial page load (where data
+// has not synced yet) can never delete breaks.
 async function syncShiftOccupancy(agents) {
+  // Read the authoritative current state once up front, so the decision is
+  // never based on a not-yet-synced empty local cache (the bug that caused the
+  // first row to lose its breaks on refresh).
+  let current;
+  try {
+    current = (await breaksRef().once("value")).val() || {};
+  } catch (err) {
+    return; // can't read state -> do nothing rather than risk a wipe
+  }
   for (const agent of agents) {
-    const storedSig = (breakState[agent.name] || {})._sig;
-    const knownSig = agent.name in appliedShiftSig ? appliedShiftSig[agent.name] : storedSig;
-    if (knownSig !== agent.sig) {
-      appliedShiftSig[agent.name] = agent.sig;
+    if (appliedShiftSig[agent.name] === agent.sig) continue;
+    const storedSig = (current[agent.name] || {})._sig;
+    appliedShiftSig[agent.name] = agent.sig;
+    if (storedSig == null) {
+      // No signature on record yet - adopt this shift WITHOUT touching any
+      // slots (child-only write, never destroys existing breaks).
+      await breaksRef().child(agent.name).child("_sig").set(agent.sig);
+    } else if (storedSig !== agent.sig) {
+      // A different shift was previously recorded for this row and a new one is
+      // now scheduled - reset the row for the new shift.
       await breaksRef().child(agent.name).set({ _sig: agent.sig });
-    } else {
-      appliedShiftSig[agent.name] = agent.sig;
     }
   }
 }
