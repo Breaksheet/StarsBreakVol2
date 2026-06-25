@@ -352,18 +352,18 @@ header {
 
 .row {
   position: relative;
-  background: var(--panel); backdrop-filter: blur(10px);
+  background: var(--panel-hover); backdrop-filter: blur(10px);
   border: 1px solid var(--border); border-left: 4px solid var(--border);
   border-radius: 14px; padding: 13px 16px;
-  transition: border-color 0.2s, background 0.2s, outline-color 0.2s, transform 0.15s;
+  transition: border-color 0.2s, outline-color 0.2s, transform 0.15s;
   outline: 2px solid transparent; outline-offset: 2px;
 }
-.row.selected { outline-color: var(--accent); background: var(--panel-hover); box-shadow: 0 0 24px rgba(79,141,255,0.18); }
+.row.selected { outline-color: var(--accent); box-shadow: 0 0 24px rgba(79,141,255,0.18); }
 .row-head { cursor: pointer; }
 .slots.locked { opacity: 0.5; pointer-events: none; }
 
 .row.available { border-left-color: var(--available); }
-.row.on-break { border-left-color: var(--on-break); background: linear-gradient(120deg, rgba(255,138,61,0.1), var(--panel) 55%); }
+.row.on-break { border-left-color: var(--on-break); }
 .row.done { border-left-color: var(--done); }
 .row.empty { text-align: center; color: var(--muted); opacity: 0.35; padding: 18px; box-shadow: none; border-left-color: var(--border); border-style: dashed; }
 
