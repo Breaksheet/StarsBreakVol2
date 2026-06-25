@@ -995,6 +995,7 @@ function tickCountdowns() {
     if (secondsLeft <= 0 && !notifiedEnded.has(slotId)) {
       notifiedEnded.add(slotId);
       notifyBreakEvent(agentName, "break time is up");
+      autoCompleteBreak(agentName, slotId).then(render);
     }
   });
 }
@@ -1169,7 +1170,7 @@ function render() {
           stopBtn.textContent = "■ Stop";
           stopBtn.addEventListener("click", () => {
             stopBtn.disabled = true;
-            stopBreak(agent.name, slot.id)
+            stopBreak(agent.name, slot.id, nowMinutes)
               .then(render)
               .catch((err) => { errorEl.textContent = err.message || "Could not save - try again."; stopBtn.disabled = false; });
           });
@@ -1373,8 +1374,33 @@ async function startBreak(agentName, slotId, slot, nowMinutes) {
 
 // Stopping marks the break as completed (done), rather than reverting it to
 // "upcoming" - otherwise stopping early just brings the Start button back.
-async function stopBreak(agentName, slotId) {
+// If stopped before the scheduled end (e.g. an agent comes back early to
+// help with high chat load), the slot's end time is truncated to now so
+// agentBookedMinutes only counts the minutes actually taken, not the full
+// booked duration.
+async function stopBreak(agentName, slotId, nowMinutes = null) {
   if (!slotId) return;
+  const update = { started: false, completed: true };
+  if (nowMinutes !== null) {
+    const slot = (breakState[agentName] || {})[slotId];
+    if (slot && slot.start) {
+      const scheduledStart = timeToMinutes(slot.start);
+      const scheduledEnd = timeToMinutes(slot.end);
+      const scheduledEndAbs = slotEndAbs(scheduledStart, scheduledEnd);
+      let nowAbs = nowMinutes;
+      if (nowAbs < scheduledStart) nowAbs += 1440;
+      if (nowAbs < scheduledEndAbs) update.end = minutesToTime(nowAbs % 1440);
+    }
+  }
+  await breaksRef().child(agentName).child(slotId).update(update);
+}
+
+// Auto-finishes a break once its scheduled time is fully up, without
+// requiring the agent to press Stop themselves.
+async function autoCompleteBreak(agentName, slotId) {
+  if (!slotId) return;
+  const slot = (breakState[agentName] || {})[slotId];
+  if (!slot || !slot.started || slot.completed) return;
   await breaksRef().child(agentName).child(slotId).update({ started: false, completed: true });
 }
 
