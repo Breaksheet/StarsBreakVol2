@@ -933,8 +933,14 @@ function playBeep() {
   }
 }
 
-function notifyBreakEvent(agentName, message) {
-  playBeep();
+function playBeepTimes(times) {
+  for (let i = 0; i < times; i++) {
+    setTimeout(playBeep, i * 350);
+  }
+}
+
+function notifyBreakEvent(agentName, message, beepTimes = 1) {
+  playBeepTimes(beepTimes);
   if (typeof Notification !== "undefined" && Notification.permission === "granted") {
     new Notification("Break update", { body: `${agentName}: ${message}` });
   }
@@ -958,7 +964,7 @@ function tickCountdowns() {
 
     if (secondsLeft <= 60 && secondsLeft > 0 && !notifiedSoon.has(slotId)) {
       notifiedSoon.add(slotId);
-      notifyBreakEvent(agentName, "break ending in 1 minute");
+      notifyBreakEvent(agentName, "break ending in 1 minute", 5);
     }
     if (secondsLeft <= 0 && !notifiedEnded.has(slotId)) {
       notifiedEnded.add(slotId);
@@ -1327,14 +1333,15 @@ async function saveSlot(agent, slotId, slotIndex, startValue, endValue) {
   return null;
 }
 
-// If Start is pressed after the scheduled start time, shift the whole break
-// window forward so the agent still gets the full duration they booked.
+// If Start is pressed before or after the scheduled start time, shift the
+// whole break window to now so the agent still gets the full duration they
+// booked, and the countdown reflects when the break actually started.
 async function startBreak(agentName, slotId, slot, nowMinutes) {
   if (!slotId) return;
   const update = { started: true, completed: false };
   const scheduledStart = timeToMinutes(slot.start);
   const scheduledEnd = timeToMinutes(slot.end);
-  if (scheduledStart !== null && scheduledEnd !== null && nowMinutes > scheduledStart) {
+  if (scheduledStart !== null && scheduledEnd !== null && nowMinutes !== scheduledStart) {
     const duration = slotEndAbs(scheduledStart, scheduledEnd) - scheduledStart;
     update.start = minutesToTime(nowMinutes);
     update.end = minutesToTime(nowMinutes + duration);
