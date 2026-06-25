@@ -355,13 +355,12 @@ header {
   background: var(--panel-hover); backdrop-filter: blur(10px);
   border: 1px solid var(--accent); border-left: 4px solid var(--accent);
   border-radius: 14px; padding: 13px 16px;
-  transition: border-color 0.2s, outline-color 0.2s, transform 0.15s;
-  outline: 2px solid var(--accent); outline-offset: 2px;
-  box-shadow: 0 0 24px rgba(79,141,255,0.18);
+  transition: outline-color 0.2s, box-shadow 0.2s, transform 0.15s;
+  outline: 2px solid transparent; outline-offset: 2px;
 }
-.row.selected { box-shadow: 0 0 32px rgba(79,141,255,0.3); }
+.row.selected { outline-color: var(--accent); box-shadow: 0 0 32px rgba(79,141,255,0.3); }
 .row-head { cursor: pointer; }
-.slots.locked { opacity: 0.5; pointer-events: none; }
+.slots.locked { pointer-events: none; }
 
 .row.available { border-left-color: var(--available); }
 .row.on-break { border-left-color: var(--on-break); }
