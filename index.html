@@ -176,6 +176,7 @@ header {
   letter-spacing: 1px;
 }
 .pill-clock-big .tz-label { font-size: 13px; font-weight: 700; color: var(--accent2); letter-spacing: 2px; font-family: 'JetBrains Mono', monospace; }
+.pill-clock-big .kyiv-date { font-size: 14px; font-weight: 600; color: var(--muted); letter-spacing: 0.5px; font-family: 'JetBrains Mono', monospace; }
 
 .wheel-btn {
   display: inline-flex; align-items: center; gap: 8px;
@@ -363,7 +364,7 @@ header {
 
 .row.available { border-left-color: var(--available); }
 .row.on-break { border-left-color: var(--on-break); background: linear-gradient(120deg, rgba(255,138,61,0.1), var(--panel) 55%); }
-.row.done { border-left-color: var(--done); opacity: 0.72; }
+.row.done { border-left-color: var(--done); }
 .row.empty { text-align: center; color: var(--muted); opacity: 0.35; padding: 18px; box-shadow: none; border-left-color: var(--border); border-style: dashed; }
 
 .row-head { display: flex; align-items: center; gap: 15px; flex-wrap: wrap; margin-bottom: 12px; }
@@ -484,7 +485,7 @@ footer.note { text-align: center; font-size: 12.5px; color: var(--muted-2); marg
       </div>
     </div>
     <div class="header-center">
-      <span class="pill-clock-big"><span id="kyiv-clock">--:--</span><span class="tz-label">KYIV</span></span>
+      <span class="pill-clock-big"><span id="kyiv-clock">--:--</span><span class="tz-label">KYIV</span><span class="kyiv-date" id="kyiv-date">--</span></span>
       <button class="wheel-btn" id="wheel-open-btn" type="button">🎡 Random Wheel</button>
     </div>
     <div class="header-right">
@@ -576,7 +577,22 @@ footer.note { text-align: center; font-size: 12.5px; color: var(--muted-2); marg
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
   <script>
 // ---- Config ----
-const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRpTkls_JxMpJsz1Y4qaHmRLd0r-2RwzbRRF8jFD5yIsbCp8PpwOJdwBpuVxWkdEnRtFqAEyFKUTTCi/pub?gid=1497706552&single=true&output=csv";
+// The sheet has one tab per month. Add each month's tab gid here once it's
+// published, and the board will automatically switch to it on the 1st of
+// that month (Kyiv time) - no manual edits needed going forward.
+const SHEET_BASE_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRpTkls_JxMpJsz1Y4qaHmRLd0r-2RwzbRRF8jFD5yIsbCp8PpwOJdwBpuVxWkdEnRtFqAEyFKUTTCi/pub";
+const SHEET_GID_BY_MONTH = {
+  "2026-06": "1497706552",
+  "2026-07": "1189960713",
+};
+const DEFAULT_SHEET_GID = "1497706552"; // used if the current month has no entry above yet
+
+function currentSheetCsvUrl(now = new Date()) {
+  const { year, month } = kyivDateParts(now);
+  const monthKey = `${year}-${String(month).padStart(2, "0")}`;
+  const gid = SHEET_GID_BY_MONTH[monthKey] || DEFAULT_SHEET_GID;
+  return `${SHEET_BASE_URL}?gid=${gid}&single=true&output=csv`;
+}
 
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyD6qYHzySBv7wopAPK39iTjSn6FCF_0Hkk",
@@ -681,7 +697,7 @@ function isOnShiftFromYesterday(shift, nowMinutes) {
 }
 
 async function fetchOnShiftAgents(now = new Date()) {
-  const response = await fetch(SHEET_CSV_URL, { cache: "no-store" });
+  const response = await fetch(currentSheetCsvUrl(now), { cache: "no-store" });
   if (!response.ok) throw new Error(`Failed to load schedule: ${response.status}`);
 
   const rows = parseCsv(await response.text());
@@ -748,10 +764,20 @@ function kyivClockString(date) {
   const { h, m, s } = kyivPartsFromDate(date);
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
+function kyivDateString(date) {
+  return date.toLocaleDateString("en-GB", {
+    timeZone: "Europe/Kyiv",
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+  });
+}
 function kyivDateParts(date) {
   const day = parseInt(date.toLocaleString("en-US", { timeZone: "Europe/Kyiv", day: "numeric" }), 10);
   const weekday = date.toLocaleString("en-US", { timeZone: "Europe/Kyiv", weekday: "short" }).toLowerCase();
-  return { day, weekday };
+  const year = parseInt(date.toLocaleString("en-US", { timeZone: "Europe/Kyiv", year: "numeric" }), 10);
+  const month = parseInt(date.toLocaleString("en-US", { timeZone: "Europe/Kyiv", month: "numeric" }), 10);
+  return { day, weekday, year, month };
 }
 
 // ---- App ----
@@ -763,6 +789,7 @@ const boardRightEl = document.getElementById("board-right");
 const gsRowEl = document.getElementById("gs-row");
 const statusEl = document.getElementById("status");
 const kyivClockEl = document.getElementById("kyiv-clock");
+const kyivDateEl = document.getElementById("kyiv-date");
 const syncPillEl = document.getElementById("sync-pill");
 const syncLabelEl = document.getElementById("sync-label");
 
@@ -1373,6 +1400,7 @@ async function refreshSchedule() {
 
 function updateKyivClock() {
   kyivClockEl.textContent = kyivClockString(new Date());
+  kyivDateEl.textContent = kyivDateString(new Date());
 }
 
 setSync("syncing", "Connecting…");
