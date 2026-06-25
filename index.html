@@ -636,6 +636,10 @@ function parseCsv(text) {
     .map((line) => line.split(",").map((cell) => cell.trim().replace(/^"|"$/g, "")));
 }
 
+function plainKyivDateKey(date) {
+  return date.toLocaleDateString("en-CA", { timeZone: "Europe/Kyiv" }); // YYYY-MM-DD
+}
+
 // The sheet's date header is split across two rows: one has the weekday
 // abbreviation ("Mon"), the row right below has the day number ("22").
 function findTodayColumn(weekdayRow, dayRow, today = new Date()) {
@@ -725,13 +729,18 @@ async function fetchOnShiftAgents(now = new Date()) {
 
     const todayShift = parseShiftCode(row[todayCol]);
     if (todayShift && isOnShiftToday(todayShift, nowMinutes)) {
-      onShift.push({ name, shift: todayShift });
+      // Signature = the calendar day this shift was scheduled under, plus the
+      // raw shift text - it stays identical for the whole shift (even across
+      // midnight) and only changes once a new shift is entered for this row.
+      const sig = `${plainKyivDateKey(now)}::${row[todayCol]}`;
+      onShift.push({ name, shift: todayShift, sig });
       continue;
     }
 
     const yesterdayShift = yesterdayCol !== -1 ? parseShiftCode(row[yesterdayCol]) : null;
     if (yesterdayShift && isOnShiftFromYesterday(yesterdayShift, nowMinutes)) {
-      onShift.push({ name, shift: yesterdayShift });
+      const sig = `${plainKyivDateKey(yesterday)}::${row[yesterdayCol]}`;
+      onShift.push({ name, shift: yesterdayShift, sig });
     }
   }
 
@@ -796,15 +805,13 @@ let onShiftAgents = [];
 let breakState = {}; // { [agentName]: { [slotId]: { start: "HH:MM", end: "HH:MM", started: bool } } }
 let selectedAgentName = localStorage.getItem("selectedAgentName") || null;
 let pendingGlobalSelection = null; // { agentName, startAbs } - startAbs is the absolute (non-wrapped) timeline minute
-
-function todayKey(now = new Date()) {
-  const { h } = kyivPartsFromDate(now);
-  const base = new Date(now.getTime());
-  return base.toLocaleDateString("en-CA", { timeZone: "Europe/Kyiv" }); // YYYY-MM-DD
-}
+// Tracks the shift "signature" (calendar day + raw shift code) of the most
+// recent reset applied per agent, so a slow Firebase round-trip doesn't cause
+// the same shift change to be re-applied (and wipe fresh data) twice.
+const appliedShiftSig = {};
 
 function breaksRef() {
-  return db.ref(`breaks/${todayKey()}`);
+  return db.ref("breaks");
 }
 
 function setSync(state, label) {
@@ -843,7 +850,9 @@ function minuteInSlotRange(minute, start, end, inclusiveEnd) {
 }
 
 function agentSlots(agentName) {
-  return Object.entries(breakState[agentName] || {}).map(([id, slot]) => ({ id, ...slot }));
+  return Object.entries(breakState[agentName] || {})
+    .filter(([id]) => id !== "_sig")
+    .map(([id, slot]) => ({ id, ...slot }));
 }
 
 function agentBookedMinutes(agentName, excludeId = null) {
@@ -1409,9 +1418,26 @@ async function clearSlot(agentName, slotId) {
   await breaksRef().child(agentName).child(slotId).remove();
 }
 
+// Breaks are kept forever per agent name - they are only wiped when a row's
+// shift signature changes, i.e. a new shift gets entered for that row (a new
+// agent arriving, or the same agent starting a brand-new shift the next day).
+async function syncShiftOccupancy(agents) {
+  for (const agent of agents) {
+    const storedSig = (breakState[agent.name] || {})._sig;
+    const knownSig = agent.name in appliedShiftSig ? appliedShiftSig[agent.name] : storedSig;
+    if (knownSig !== agent.sig) {
+      appliedShiftSig[agent.name] = agent.sig;
+      await breaksRef().child(agent.name).set({ _sig: agent.sig });
+    } else {
+      appliedShiftSig[agent.name] = agent.sig;
+    }
+  }
+}
+
 async function refreshSchedule() {
   try {
     onShiftAgents = await fetchOnShiftAgents();
+    await syncShiftOccupancy(onShiftAgents);
     statusEl.textContent = "";
     render();
   } catch (err) {
