@@ -805,10 +805,6 @@ let onShiftAgents = [];
 let breakState = {}; // { [agentName]: { [slotId]: { start: "HH:MM", end: "HH:MM", started: bool } } }
 let selectedAgentName = localStorage.getItem("selectedAgentName") || null;
 let pendingGlobalSelection = null; // { agentName, startAbs } - startAbs is the absolute (non-wrapped) timeline minute
-// Tracks the shift "signature" (calendar day + raw shift code) of the most
-// recent reset applied per agent, so a slow Firebase round-trip doesn't cause
-// the same shift change to be re-applied (and wipe fresh data) twice.
-const appliedShiftSig = {};
 
 function breaksRef() {
   return db.ref("breaks");
@@ -1418,42 +1414,17 @@ async function clearSlot(agentName, slotId) {
   await breaksRef().child(agentName).child(slotId).remove();
 }
 
-// Breaks are kept indefinitely per agent name. A row is reset ONLY when a
-// genuinely different shift signature was already on record for it and a new
-// one is now scheduled. An absent/unknown stored signature is never treated as
-// a reason to wipe - that path only records the signature and leaves existing
-// break data untouched. This guarantees a slow/partial page load (where data
-// has not synced yet) can never delete breaks.
-async function syncShiftOccupancy(agents) {
-  // Read the authoritative current state once up front, so the decision is
-  // never based on a not-yet-synced empty local cache (the bug that caused the
-  // first row to lose its breaks on refresh).
-  let current;
-  try {
-    current = (await breaksRef().once("value")).val() || {};
-  } catch (err) {
-    return; // can't read state -> do nothing rather than risk a wipe
-  }
-  for (const agent of agents) {
-    if (appliedShiftSig[agent.name] === agent.sig) continue;
-    const storedSig = (current[agent.name] || {})._sig;
-    appliedShiftSig[agent.name] = agent.sig;
-    if (storedSig == null) {
-      // No signature on record yet - adopt this shift WITHOUT touching any
-      // slots (child-only write, never destroys existing breaks).
-      await breaksRef().child(agent.name).child("_sig").set(agent.sig);
-    } else if (storedSig !== agent.sig) {
-      // A different shift was previously recorded for this row and a new one is
-      // now scheduled - reset the row for the new shift.
-      await breaksRef().child(agent.name).set({ _sig: agent.sig });
-    }
-  }
-}
+// Breaks are NEVER deleted automatically. Each agent's breaks persist
+// indefinitely under their name and are only ever removed by the manual
+// "Clear" button (clearSlot). There is intentionally no shift-occupancy /
+// signature reset here: any automatic reset risks wiping live break data when
+// a shift signature merely *appears* to change (a new calendar day crossing
+// midnight, an edit to the schedule cell, a slow Firebase sync, etc.), which
+// is exactly the "breaks randomly deleted after a couple of hours" bug.
 
 async function refreshSchedule() {
   try {
     onShiftAgents = await fetchOnShiftAgents();
-    await syncShiftOccupancy(onShiftAgents);
     statusEl.textContent = "";
     render();
   } catch (err) {
