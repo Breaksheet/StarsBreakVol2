@@ -583,8 +583,9 @@ const SHEET_BASE_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRpTkls_
 const SHEET_GID_BY_MONTH = {
   "2026-06": "1497706552",
   "2026-07": "1189960713",
+  "2026-08": "1186884943",
 };
-const DEFAULT_SHEET_GID = "1497706552"; // used if the current month has no entry above yet
+const DEFAULT_SHEET_GID = "1186884943"; // used if the current month has no entry above yet
 
 function currentSheetCsvUrl(now = new Date()) {
   const { year, month } = kyivDateParts(now);
