@@ -1266,15 +1266,18 @@ function renderGlobalSlots(nowMinutes, maxConcurrent) {
     const isNow = abs <= nowAbsolute && nowAbsolute < abs + SLOT_STEP_MINUTES;
     if (isNow) cell.classList.add("now-marker");
 
+    // Cosmetic only - inclusive of a slot's end boundary so a break booked
+    // 21:00->22:00 visually highlights the 22:00 cell too (see the function's
+    // own comment). This must NOT be used to decide whether a cell can be
+    // clicked, or adjacent bookings (14:00-15:00 then 15:00-16:00) would
+    // wrongly block each other at the shared boundary minute.
     const covered = overlappingAgentsAtMinuteDisplay(minute);
-    let isFull = false;
     if (covered > 0) {
       const countLabel = document.createElement("span");
       countLabel.className = "gs-count";
       countLabel.textContent = `${covered}/${maxConcurrent}`;
       cell.appendChild(countLabel);
       if (covered >= maxConcurrent) {
-        isFull = true;
         cell.classList.add("full");
         cell.title = `${covered}/${maxConcurrent} slots filled — fully booked`;
       } else {
@@ -1283,8 +1286,21 @@ function renderGlobalSlots(nowMinutes, maxConcurrent) {
       }
     }
 
+    const isPickingEnd = pendingGlobalSelection && selectedAgent && pendingGlobalSelection.agentName === selectedAgent.name;
+
+    // Blocking check (does this cell stop a click) is intentionally separate
+    // from the cosmetic count above:
+    // - Exclusive of the boundary minute, so adjacent bookings don't block
+    //   each other at the shared edge.
+    // - Excludes the selected agent's own bookings, so an agent's existing
+    //   break never counts against their own new booking.
+    // - Skipped entirely while picking the END of a selection - the final
+    //   range is validated authoritatively by saveSlot() on save, and any
+    //   real conflict is reported back as an error there.
+    const isBlocked = !isPickingEnd && overlappingAgentsAtMinute(minute, selectedAgent ? selectedAgent.name : null) >= maxConcurrent;
+
     let clickable = false;
-    if (selectedAgent && canBookMore && !isPast && !isFull) {
+    if (selectedAgent && canBookMore && !isPast && !isBlocked) {
       clickable = true;
     }
 
