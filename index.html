@@ -605,7 +605,6 @@ const FIREBASE_CONFIG = {
 };
 
 const SCHEDULE_REFRESH_MS = 60 * 1000;
-const MAX_AGENT_ROWS = 10;
 const TWO_BREAK_THRESHOLD = 6;
 const MAX_SLOTS_PER_AGENT = 3;
 const MAX_BREAK_MINUTES_PER_DAY = 60;
@@ -630,11 +629,44 @@ const EXCLUDED_NAMES = [
 const STATUS_OFF = "OFF";
 const STATUS_PROBATION = "OB";
 
+// Quote-aware line splitter: a naive split(",") breaks whenever a cell has
+// an embedded comma inside quotes (e.g. a name like "Giorgi (TL CS iGate,
+// Jawhara)"), which silently shifts every later column in that row.
+function parseCsvLine(line) {
+  const cells = [];
+  let cur = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (line[i + 1] === '"') {
+          cur += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        cur += c;
+      }
+    } else if (c === '"') {
+      inQuotes = true;
+    } else if (c === ",") {
+      cells.push(cur);
+      cur = "";
+    } else {
+      cur += c;
+    }
+  }
+  cells.push(cur);
+  return cells;
+}
+
 function parseCsv(text) {
   return text
     .trim()
     .split(/\r?\n/)
-    .map((line) => line.split(",").map((cell) => cell.trim().replace(/^"|"$/g, "")));
+    .map((line) => parseCsvLine(line).map((cell) => cell.trim()));
 }
 
 function plainKyivDateKey(date) {
@@ -745,7 +777,7 @@ async function fetchOnShiftAgents(now = new Date()) {
     }
   }
 
-  return onShift.slice(0, MAX_AGENT_ROWS);
+  return onShift;
 }
 
 function maxConcurrentBreaks(onShiftCount) {
@@ -1025,7 +1057,7 @@ function render() {
   boardRightEl.innerHTML = "";
   renderGlobalSlots(nowMinutes, maxConcurrent);
 
-  for (let i = 0; i < MAX_AGENT_ROWS; i++) {
+  for (let i = 0; i < onShiftAgents.length; i++) {
     const agent = onShiftAgents[i];
     const boardEl = i % 2 === 0 ? boardLeftEl : boardRightEl;
     const row = document.createElement("div");
