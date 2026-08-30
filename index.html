@@ -581,11 +581,9 @@ footer.note { text-align: center; font-size: 12.5px; color: var(--muted-2); marg
 // that month (Kyiv time) - no manual edits needed going forward.
 const SHEET_BASE_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSa525xcZY8Mn6GCEuJnKup2nDIxAKfeqvuZQ4LpDrnynWEfiiBfTZklojriCgNTJMOh1n4CCAiDFXe/pub";
 const SHEET_GID_BY_MONTH = {
-  "2026-06": "1497706552",
-  "2026-07": "1189960713",
-  "2026-08": "1186884943",
+  "2026-08": "2058530733"
 };
-const DEFAULT_SHEET_GID = "1186884943"; // used if the current month has no entry above yet
+const DEFAULT_SHEET_GID = "2058530733"; // used if the current month has no entry above yet
 
 function currentSheetCsvUrl(now = new Date()) {
   const { year, month } = kyivDateParts(now);
@@ -629,9 +627,8 @@ const EXCLUDED_NAMES = [
 const STATUS_OFF = "OFF";
 const STATUS_PROBATION = "OB";
 
-// Quote-aware line splitter: a naive split(",") breaks whenever a cell has
-// an embedded comma inside quotes (e.g. a name like "Giorgi (TL CS iGate,
-// Jawhara)"), which silently shifts every later column in that row.
+// Quote-aware line parser so agent names containing embedded commas (e.g.
+// "Smith, John (Team Lead)") don't get split into extra phantom columns.
 function parseCsvLine(line) {
   const cells = [];
   let cur = "";
@@ -640,12 +637,8 @@ function parseCsvLine(line) {
     const c = line[i];
     if (inQuotes) {
       if (c === '"') {
-        if (line[i + 1] === '"') {
-          cur += '"';
-          i++;
-        } else {
-          inQuotes = false;
-        }
+        if (line[i + 1] === '"') { cur += '"'; i++; }
+        else inQuotes = false;
       } else {
         cur += c;
       }
@@ -659,14 +652,14 @@ function parseCsvLine(line) {
     }
   }
   cells.push(cur);
-  return cells;
+  return cells.map((cell) => cell.trim());
 }
 
 function parseCsv(text) {
   return text
     .trim()
     .split(/\r?\n/)
-    .map((line) => parseCsvLine(line).map((cell) => cell.trim()));
+    .map(parseCsvLine);
 }
 
 function plainKyivDateKey(date) {
@@ -1063,13 +1056,6 @@ function render() {
     const row = document.createElement("div");
     row.className = "row";
 
-    if (!agent) {
-      row.classList.add("empty");
-      row.textContent = "—";
-      boardEl.appendChild(row);
-      continue;
-    }
-
     const slots = agentSlots(agent.name).sort((a, b) => (timeToMinutes(a.start) || 0) - (timeToMinutes(b.start) || 0));
     while (slots.length < MAX_SLOTS_PER_AGENT) slots.push({ id: null, start: "", end: "", started: false });
 
@@ -1298,15 +1284,16 @@ function renderGlobalSlots(nowMinutes, maxConcurrent) {
     const isNow = abs <= nowAbsolute && nowAbsolute < abs + SLOT_STEP_MINUTES;
     if (isNow) cell.classList.add("now-marker");
 
+    // Cosmetic count: inclusive of the slot's end boundary, includes every
+    // agent (even the one currently selected) - this is just what's shown to
+    // everyone as "how full is this minute".
     const covered = overlappingAgentsAtMinuteDisplay(minute);
-    let isFull = false;
     if (covered > 0) {
       const countLabel = document.createElement("span");
       countLabel.className = "gs-count";
       countLabel.textContent = `${covered}/${maxConcurrent}`;
       cell.appendChild(countLabel);
       if (covered >= maxConcurrent) {
-        isFull = true;
         cell.classList.add("full");
         cell.title = `${covered}/${maxConcurrent} slots filled — fully booked`;
       } else {
@@ -1315,8 +1302,17 @@ function renderGlobalSlots(nowMinutes, maxConcurrent) {
       }
     }
 
+    // Click-blocking count: exclusive end boundary (so a break ending exactly
+    // at this minute doesn't block the next slot) and excludes the selected
+    // agent's own bookings (so an agent can't get locked out of minutes
+    // adjacent to their own existing slot).
+    const blockingCount = selectedAgent
+      ? overlappingAgentsAtMinute(minute, selectedAgent.name)
+      : covered;
+    const isBlocked = blockingCount >= maxConcurrent;
+
     let clickable = false;
-    if (selectedAgent && canBookMore && !isPast && !isFull) {
+    if (selectedAgent && canBookMore && !isPast && !isBlocked) {
       clickable = true;
     }
 
