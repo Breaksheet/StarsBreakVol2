@@ -581,7 +581,8 @@ footer.note { text-align: center; font-size: 12.5px; color: var(--muted-2); marg
 // that month (Kyiv time) - no manual edits needed going forward.
 const SHEET_BASE_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSa525xcZY8Mn6GCEuJnKup2nDIxAKfeqvuZQ4LpDrnynWEfiiBfTZklojriCgNTJMOh1n4CCAiDFXe/pub";
 const SHEET_GID_BY_MONTH = {
-  "2026-08": "2058530733"
+  "2026-08": "2058530733",
+  "2026-09": "2058530733"
 };
 const DEFAULT_SHEET_GID = "2058530733"; // used if the current month has no entry above yet
 
@@ -627,32 +628,32 @@ const EXCLUDED_NAMES = [
 const STATUS_OFF = "OFF";
 const STATUS_PROBATION = "OB";
 
-// Quote-aware line parser so agent names containing embedded commas (e.g.
-// "Smith, John (Team Lead)") don't get split into extra phantom columns.
+// Quote-aware CSV line parser: handles cells like "Giorgi (TL CS iGate, Jawhara)"
+// with embedded commas and "" escaped quotes, so columns never shift.
 function parseCsvLine(line) {
   const cells = [];
   let cur = "";
   let inQuotes = false;
   for (let i = 0; i < line.length; i++) {
-    const c = line[i];
+    const ch = line[i];
     if (inQuotes) {
-      if (c === '"') {
+      if (ch === '"') {
         if (line[i + 1] === '"') { cur += '"'; i++; }
         else inQuotes = false;
       } else {
-        cur += c;
+        cur += ch;
       }
-    } else if (c === '"') {
+    } else if (ch === '"') {
       inQuotes = true;
-    } else if (c === ",") {
-      cells.push(cur);
+    } else if (ch === ",") {
+      cells.push(cur.trim());
       cur = "";
     } else {
-      cur += c;
+      cur += ch;
     }
   }
-  cells.push(cur);
-  return cells.map((cell) => cell.trim());
+  cells.push(cur.trim());
+  return cells;
 }
 
 function parseCsv(text) {
@@ -1284,9 +1285,6 @@ function renderGlobalSlots(nowMinutes, maxConcurrent) {
     const isNow = abs <= nowAbsolute && nowAbsolute < abs + SLOT_STEP_MINUTES;
     if (isNow) cell.classList.add("now-marker");
 
-    // Cosmetic count: inclusive of the slot's end boundary, includes every
-    // agent (even the one currently selected) - this is just what's shown to
-    // everyone as "how full is this minute".
     const covered = overlappingAgentsAtMinuteDisplay(minute);
     if (covered > 0) {
       const countLabel = document.createElement("span");
