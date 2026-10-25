@@ -628,33 +628,33 @@ const EXCLUDED_NAMES = [
 const STATUS_OFF = "OFF";
 const STATUS_PROBATION = "OB";
 
-// Quote-aware: a quoted cell like "Giorgi (TL CS Row10, Jawhara)" keeps its
-// inner comma instead of shifting every column after it.
-function parseCsvLine(line) {
-  const cells = [];
+// Quote-aware CSV parser. Handles commas inside quoted cells (e.g.
+// "Giorgi (TL CS Row10, Jawhara)") and line breaks inside quoted cells
+// (e.g. a shift cell "15-23" + newline + "/t19-23" ticket note), which
+// would otherwise split one agent's row into several broken rows.
+function parseCsv(text) {
+  const src = text.replace(/^\uFEFF/, "");
+  const rows = [];
+  let row = [];
   let cur = "";
   let inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
+  for (let i = 0; i < src.length; i++) {
+    const ch = src[i];
     if (inQuotes) {
       if (ch === '"') {
-        if (line[i + 1] === '"') { cur += '"'; i++; }
+        if (src[i + 1] === '"') { cur += '"'; i++; }
         else inQuotes = false;
       } else cur += ch;
     } else if (ch === '"') inQuotes = true;
-    else if (ch === ",") { cells.push(cur.trim()); cur = ""; }
-    else cur += ch;
+    else if (ch === ",") { row.push(cur.trim()); cur = ""; }
+    else if (ch === "\n" || ch === "\r") {
+      if (ch === "\r" && src[i + 1] === "\n") i++;
+      row.push(cur.trim()); rows.push(row); row = []; cur = "";
+    } else cur += ch;
   }
-  cells.push(cur.trim());
-  return cells;
-}
-
-function parseCsv(text) {
-  return text
-    .replace(/^\uFEFF/, "")
-    .trim()
-    .split(/\r?\n/)
-    .map(parseCsvLine);
+  if (cur !== "" || row.length) { row.push(cur.trim()); rows.push(row); }
+  while (rows.length && rows[rows.length - 1].every((c) => c === "")) rows.pop();
+  return rows;
 }
 
 // Google Workspace currently blocks public publishing of the sheet (401), so
@@ -720,7 +720,8 @@ function findAgentsHeaderRow(rows) {
 // ticket-duty (works that shift, not on phones) - excluded entirely.
 function parseShiftCode(cell) {
   if (!cell) return null;
-  const normalized = cell.trim().toUpperCase();
+  // Only the first line is the shift; extra lines like "/t19-23" are notes.
+  const normalized = cell.split(/\r?\n/)[0].trim().toUpperCase();
   if (normalized === STATUS_OFF || normalized === STATUS_PROBATION || normalized === "") return null;
   if (normalized.startsWith("T")) return null;
 
